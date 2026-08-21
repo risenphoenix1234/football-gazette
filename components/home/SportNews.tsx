@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
- 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { NewsArticle } from "@/lib/news";
 
@@ -18,103 +18,151 @@ export default function SportNews() {
   }, []);
 
   const scrollRight = () => {
-    scrollRef.current?.scrollBy({ left: 340, behavior: "smooth" });
+    scrollRef.current?.scrollBy({ left: 260, behavior: "smooth" });
   };
 
   return (
-    <section  id="latest-news" className="bg-white py-20">
-      <div className="mx-auto max-w-[1300px] px-4 lg:px-8">
-        <h2 className="text-4xl md:text-5xl font-black text-black">SPORT NEWS</h2>
-        <p className="mt-1 text-lg font-medium text-gray-500">Click for more updates</p>
+    <>
+      <section id="latest-news" className="bg-white py-10 sm:py-16 lg:py-20">
+        <div className="mx-auto max-w-[1300px] px-4 lg:px-8">
+          <h2 className="text-2xl sm:text-3xl md:text-5xl font-black text-black">
+            SPORT NEWS
+          </h2>
+          <p className="mt-1 text-sm sm:text-lg font-medium text-gray-500">
+            Click for more updates
+          </p>
 
-        {loading && (
-          <p className="mt-12 text-gray-400">Loading latest news…</p>
-        )}
+          {loading && (
+            <p className="mt-8 sm:mt-12 text-gray-400 text-sm sm:text-base">
+              Loading latest news…
+            </p>
+          )}
 
-        {!loading && news.length === 0 && (
-          <p className="mt-12 text-gray-400">No news available right now.</p>
-        )}
+          {!loading && news.length === 0 && (
+            <p className="mt-8 sm:mt-12 text-gray-400 text-sm sm:text-base">
+              No news available right now.
+            </p>
+          )}
 
-        <div className="relative mt-12">
-          <div
-            ref={scrollRef}
-            className="overflow-x-auto scroll-smooth scrollbar-hide [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          >
-            <div className="flex min-w-max">
-              {news.map((item, index) => (
-              <a key={item.id} href={item.url} target="_blank" rel="noopener noreferrer">
-                  <article className="relative h-[460px] w-[320px] flex-shrink-0 overflow-hidden">
-                    <Image
-                      src={item.image}
-                      alt={item.title}
-                      fill
-                      className="object-cover"
-                      unoptimized
-                    />
-                    <div className={`absolute inset-0 ${index === 0 ? "bg-purple-700/55" : "bg-black/55"}`} />
+          <div className="relative mt-6 sm:mt-12">
+            <div
+              ref={scrollRef}
+              className="overflow-x-auto scroll-smooth scrollbar-hide [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
+              <div className="flex min-w-max gap-3 sm:gap-0">
+                {news.map((item, index) => (
+                  <a key={item.id} href={item.url} target="_blank" rel="noopener noreferrer">
+                    <article className="relative h-[320px] w-[220px] sm:h-[400px] sm:w-[280px] lg:h-[460px] lg:w-[320px] flex-shrink-0 overflow-hidden">
+                      <Image
+                        src={item.image}
+                        alt={item.title}
+                        fill
+                        className="object-cover"
+                        unoptimized
+                      />
+                      <div
+                        className={`absolute inset-0 ${
+                          index === 0 ? "bg-purple-700/55" : "bg-black/55"
+                        }`}
+                      />
 
-                    <div className="absolute inset-0 flex flex-col justify-end p-8 text-white">
-                      <span className="mb-4 text-lg font-semibold uppercase text-purple-400">
-                        {item.category}
-                      </span>
-                      <h3 className="text-[20px] md:text-[22px] font-bold leading-tight">
-                        {item.title}
-                      </h3>
+                      <div className="absolute inset-0 flex flex-col justify-end p-4 sm:p-6 lg:p-8 text-white">
+                        <span className="mb-2 sm:mb-3 lg:mb-4 text-[10px] sm:text-sm lg:text-lg font-semibold uppercase text-purple-400">
+                          {item.category}
+                        </span>
+                        <h3 className="text-[13px] sm:text-[17px] lg:text-[22px] font-bold leading-tight line-clamp-3">
+                          {item.title}
+                        </h3>
 
-                      <div className="mt-8 flex items-center gap-3">
-                        {item.avatar ? (
-                          <div className="relative h-14 w-14 flex-shrink-0 aspect-square overflow-hidden rounded-full border-2 border-white">
-                            <Image
-                              src={item.avatar}
-                              alt={item.author}
-                              fill
-                              className="object-cover"
-                              unoptimized
-                            />
+                        <div className="mt-4 sm:mt-6 lg:mt-8 flex items-center gap-2 sm:gap-3">
+                          {item.avatar ? (
+                            <div className="relative h-8 w-8 sm:h-11 sm:w-11 lg:h-14 lg:w-14 flex-shrink-0 aspect-square overflow-hidden rounded-full border-2 border-white">
+                              <Image
+                                src={item.avatar}
+                                alt={item.author}
+                                fill
+                                className="object-cover"
+                                unoptimized
+                              />
+                            </div>
+                          ) : (
+                            <div className="flex h-8 w-8 sm:h-11 sm:w-11 lg:h-14 lg:w-14 flex-shrink-0 aspect-square items-center justify-center rounded-full border-2 border-white bg-purple-600 text-xs sm:text-base lg:text-lg font-bold">
+                              {item.source.charAt(0)}
+                            </div>
+                          )}
+
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-xs sm:text-base lg:text-lg font-bold">
+                              {item.author}
+                            </p>
+                            <p className="truncate text-[10px] sm:text-xs lg:text-sm text-white/80">
+                              {item.source}
+                            </p>
                           </div>
-                        ) : (
-                          <div className="flex h-14 w-14 flex-shrink-0 aspect-square items-center justify-center rounded-full border-2 border-white bg-purple-600 text-lg font-bold">
-                            {item.source.charAt(0)}
-                          </div>
-                        )}
-
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-lg font-bold">{item.author}</p>
-                          <p className="truncate text-sm text-white/80">{item.source}</p>
                         </div>
                       </div>
-                    </div>
-                  </article>
-                </a>
-              ))}
+                    </article>
+                  </a>
+                ))}
+              </div>
             </div>
+
+            {news.length > 0 && (
+              <button
+                onClick={scrollRight}
+                aria-label="Scroll right"
+                className="absolute right-1 sm:right-2 top-1/2 -translate-y-1/2 flex h-9 w-9 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-purple-600 text-white shadow-lg transition hover:bg-purple-700"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="sm:w-6 sm:h-6"
+                >
+                  <path d="M9 18l6-6-6-6" />
+                </svg>
+              </button>
+            )}
           </div>
 
-          {news.length > 0 && (
-           <button
-  onClick={scrollRight}
-  aria-label="Scroll right"
-  className="absolute right-2 top-1/2 -translate-y-1/2 flex h-12 w-12 items-center justify-center rounded-full bg-purple-600 text-white shadow-lg transition hover:bg-purple-700"
->
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M9 18l6-6-6-6" />
-  </svg>
-</button>
-          )}
+          <div className="mt-8 sm:mt-10 h-1 w-1/3 rounded-full bg-purple-600" />
         </div>
+      </section>
 
-        <div className="h-full w-1/3 rounded-full bg-purple-600" />
-      </div>
-    </section>
+      {/* FPL PROMO STRIP */}
+      <section className="bg-purple-700 py-8 sm:py-10">
+        <div className="mx-auto max-w-[1300px] px-4 lg:px-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-6">
+          <div>
+            <p className="text-purple-300 text-[10px] sm:text-xs font-bold uppercase tracking-[0.25em] mb-1">
+              Fantasy Football
+            </p>
+            <h3 className="text-white text-xl sm:text-2xl lg:text-3xl font-black uppercase leading-tight">
+              Build your Fantasy Premier League squad
+            </h3>
+          </div>
+          <Link
+            href="/Fantasy-premier-league"
+            className="shrink-0 inline-flex items-center gap-2 bg-white hover:bg-purple-100 text-purple-700 text-[12px] sm:text-[13px] font-bold px-5 sm:px-7 py-2.5 sm:py-3 tracking-wide transition-colors"
+          >
+            Go to FPL
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
+        </div>
+      </section>
+    </>
   );
 }
