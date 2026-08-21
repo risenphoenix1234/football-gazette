@@ -1,0 +1,56 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Admin {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String   // hashed
+  name      String?
+  createdAt DateTime @default(now())
+}
+
+model News {
+  id          Int      @id @default(autoincrement())
+  title       String
+  slug        String   @unique
+  excerpt     String?
+  content     String   // rich text (HTML/MD/string)
+  imageUrl    String?
+  source      String   @default("local") // local/api
+  publishedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Fixture {
+  id        Int      @id @default(autoincrement())
+  apiId     Int      @unique
+  homeTeam  String
+  awayTeam  String
+  status    String
+  startTime DateTime
+  league    String
+  homeScore Int? 
+  awayScore Int?
+}
+
+model LeagueStanding {
+  id        Int      @id @default(autoincrement())
+  league    String
+  season    String
+  position  Int
+  teamName  String
+  played    Int
+  won       Int
+  drawn     Int
+  lost      Int
+  goalsFor  Int
+  goalsAgainst Int
+  points    Int
+}
