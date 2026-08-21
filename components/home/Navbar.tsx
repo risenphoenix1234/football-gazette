@@ -1,15 +1,33 @@
 "use client";
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useState } from "react";
+
+const NAV_LINKS = [
+  
+  { label: "Features", id: "features" },
+  { label: "Latest News", id: "latest-news" },
+  { label: "Contact Us", id: "contact-us" },
+];
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
+  const [active, setActive] = useState("home");
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
+    e.preventDefault();
+    setActive(id);
+    const el = document.getElementById(id);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
 
   return (
     <nav
@@ -35,25 +53,30 @@ export default function Navbar() {
 
         {/* NAV LINKS */}
         <ul className="hidden md:flex items-center gap-10">
+          {NAV_LINKS.map(({ label, id }) => (
+            <li key={id}>
+              
+               <a href={`#${id}`}
+                onClick={(e) => handleNavClick(e, id)}
+                className={`text-[13px] font-bold tracking-widest uppercase pb-0.5 transition-colors ${
+                  active === id
+                    ? "text-white border-b-2 border-white"
+                    : "text-white/80 font-semibold hover:text-white"
+                }`}
+              >
+                {label}
+              </a>
+            </li>
+          ))}
+
+          {/* FPL — real route navigation, not a scroll link */}
           <li>
-            <a href="#" className="text-white text-[13px] font-bold tracking-widest uppercase border-b-2 border-white pb-0.5">
-              Home
-            </a>
-          </li>
-          <li>
-            <a href="#" className="text-white/80 text-[13px] font-semibold tracking-widest uppercase hover:text-white transition-colors">
-              Features
-            </a>
-          </li>
-          <li>
-            <a href="#" className="text-white/80 text-[13px] font-semibold tracking-widest uppercase hover:text-white transition-colors">
-              Latest News
-            </a>
-          </li>
-          <li>
-            <a href="#" className="text-white/80 text-[13px] font-semibold tracking-widest uppercase hover:text-white transition-colors">
-              Contact Us
-            </a>
+            <Link
+              href="/Fantasy-premier-league"
+              className="text-white/80 text-[13px] font-semibold tracking-widest uppercase hover:text-white transition-colors"
+            >
+              Fantasy Premier League
+            </Link>
           </li>
         </ul>
 

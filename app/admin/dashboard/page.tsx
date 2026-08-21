@@ -158,7 +158,7 @@ export default function AdminDashboard() {
 
   function applyFormat(command: string, value?: string) {
     focusBody();
-    document.execCommand(command, false, value || null);
+    document.execCommand(command, false, value);
     updateCharCount();
   }
 

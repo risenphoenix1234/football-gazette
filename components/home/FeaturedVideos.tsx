@@ -14,7 +14,7 @@ export default async function FeaturedVideos() {
   }
 
   return (
-    <section className="relative w-full bg-[#1a1a2e] py-16">
+    <section id="features" className="relative w-full bg-[#1a1a2e] py-16">
       <div className="mx-auto max-w-[1300px] px-4 lg:px-8">
         <h2 className="text-white font-black text-[1.8rem] md:text-[2.2rem] uppercase leading-tight tracking-tight">
           Featured Videos

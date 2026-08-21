@@ -28,7 +28,7 @@ export default function Countdown({ targetISO }: { targetISO: string }) {
   }, [targetISO]);
 
   return (
-    <div className="grid grid-cols-3 text-center mt-14">
+    <div  className="grid grid-cols-3 text-center mt-14">
       <div>
         <div className="text-[56px] font-bold leading-none text-gray-600">
           {mounted ? time.hrs : "00"}

@@ -22,7 +22,7 @@ export default function SportNews() {
   };
 
   return (
-    <section className="bg-white py-20">
+    <section  id="latest-news" className="bg-white py-20">
       <div className="mx-auto max-w-[1300px] px-4 lg:px-8">
         <h2 className="text-4xl md:text-5xl font-black text-black">SPORT NEWS</h2>
         <p className="mt-1 text-lg font-medium text-gray-500">Click for more updates</p>
