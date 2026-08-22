@@ -21,12 +21,14 @@ const FALLBACK_SLIDE: NewsArticle = {
 export default function HeroSection() {
   const [articles, setArticles] = useState<NewsArticle[]>([]);
   const [offset, setOffset] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetch("/api/news")
       .then((res) => res.json())
       .then((data) => setArticles((data.articles ?? []).slice(0, 6)))
-      .catch(() => setArticles([]));
+      .catch(() => setArticles([]))
+      .finally(() => setLoading(false));
   }, []);
 
   const slides = articles.length > 0 ? articles : [FALLBACK_SLIDE];
@@ -49,8 +51,34 @@ export default function HeroSection() {
   const current = slides[offset % total];
   const currentSlide = offset + 1;
 
+  if (loading) {
+    return (
+      <section className="relative w-full h-[70vh] min-h-[420px] sm:h-screen sm:min-h-[560px] max-h-[900px] overflow-hidden bg-gradient-to-br from-purple-900 via-purple-800 to-purple-700">
+        <div className="absolute top-0 left-0 right-0 z-20">
+          <Navbar />
+        </div>
+
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
+          <div className="flex items-center gap-3">
+            <Image
+              src="/logo.png"
+              alt="Football Gazette"
+              width={44}
+              height={44}
+              className="shrink-0 opacity-90"
+            />
+            <div className="leading-[1.1]">
+              <p className="text-white font-black text-[12px] tracking-[0.2em] uppercase">Football</p>
+              <p className="text-white font-black text-[12px] tracking-[0.2em] uppercase">Gazette</p>
+            </div>
+          </div>
+          <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+        </div>
+      </section>
+    );
+  }
+
   return (
-    // shorter, fixed-ratio height on mobile instead of full h-screen
     <section className="relative w-full h-[70vh] min-h-[420px] sm:h-screen sm:min-h-[560px] max-h-[900px] overflow-hidden">
       <Image
         key={current.id}

@@ -79,7 +79,16 @@ export async function getLeagueStandings(): Promise<LeagueStandings> {
     page += 1;
   }
 
-  const entries: StandingsEntry[] = allResults.map((r) => ({
+  // Defensive dedupe: FPL pagination can occasionally return overlapping
+  // results if has_next is stale or a page is re-fetched.
+  const seen = new Set<number>();
+  const uniqueResults = allResults.filter((r) => {
+    if (seen.has(r.entry)) return false;
+    seen.add(r.entry);
+    return true;
+  });
+
+  const entries: StandingsEntry[] = uniqueResults.map((r) => ({
     id: r.id,
     entryId: r.entry,
     teamName: r.entry_name,
@@ -98,5 +107,203 @@ export async function getLeagueStandings(): Promise<LeagueStandings> {
     entries,
     hasStarted,
     currentGameweek: null,
+  };
+}
+
+// --- Top Players ---
+export interface TopPlayer {
+  id: number;
+  name: string;
+  team: string;
+  position: string;
+  totalPoints: number;
+  price: number;
+  transfersInEvent: number;
+  pointsPerMillion: number;
+}
+
+export async function getTopPlayers(): Promise<TopPlayer[]> {
+  const res = await fetch("https://fantasy.premierleague.com/api/bootstrap-static/", {
+    next: { revalidate: 3600 },
+  });
+  if (!res.ok) throw new Error("Failed to fetch FPL bootstrap data");
+
+  const data = await res.json();
+  const teams: Record<number, string> = Object.fromEntries(
+    data.teams.map((t: any) => [t.id, t.short_name])
+  );
+  const positions: Record<number, string> = {
+    1: "GKP",
+    2: "DEF",
+    3: "MID",
+    4: "FWD",
+  };
+
+  const players: TopPlayer[] = data.elements.map((p: any) => {
+    const price = p.now_cost / 10;
+    return {
+      id: p.id,
+      name: `${p.first_name} ${p.second_name}`,
+      team: teams[p.team] ?? "",
+      position: positions[p.element_type] ?? "",
+      totalPoints: p.total_points,
+      price,
+      transfersInEvent: p.transfers_in_event,
+      pointsPerMillion: price > 0 ? Math.round((p.total_points / price) * 10) / 10 : 0,
+    };
+  });
+
+  return players;
+}
+
+export function getTopByPoints(players: TopPlayer[], limit = 10) {
+  return [...players].sort((a, b) => b.totalPoints - a.totalPoints).slice(0, limit);
+}
+
+export function getTopByTransfersIn(players: TopPlayer[], limit = 10) {
+  return [...players].sort((a, b) => b.transfersInEvent - a.transfersInEvent).slice(0, limit);
+}
+
+export function getBestValue(players: TopPlayer[], limit = 10) {
+  return [...players]
+    .filter((p) => p.totalPoints >= 20) // filters out noise from unused players
+    .sort((a, b) => b.pointsPerMillion - a.pointsPerMillion)
+    .slice(0, limit);
+}
+
+// --- Fixture Difficulty ---
+export interface FixtureDifficultyRow {
+  teamId: number;
+  teamName: string;
+  gameweeks: { event: number; opponent: string; isHome: boolean; difficulty: number }[];
+}
+
+export async function getFixtureDifficulty(gwCount = 5): Promise<FixtureDifficultyRow[]> {
+  const [bootstrapRes, fixturesRes] = await Promise.all([
+    fetch("https://fantasy.premierleague.com/api/bootstrap-static/", { next: { revalidate: 3600 } }),
+    fetch("https://fantasy.premierleague.com/api/fixtures/", { next: { revalidate: 3600 } }),
+  ]);
+  if (!bootstrapRes.ok || !fixturesRes.ok) throw new Error("Failed to fetch fixture data");
+
+  const bootstrap = await bootstrapRes.json();
+  const fixtures = await fixturesRes.json();
+
+  const teams: Record<number, string> = Object.fromEntries(
+    bootstrap.teams.map((t: any) => [t.id, t.short_name])
+  );
+
+  const currentEvent =
+    bootstrap.events.find((e: any) => e.is_next)?.id ??
+    bootstrap.events.find((e: any) => e.is_current)?.id ??
+    1;
+
+  const upcoming = fixtures.filter(
+    (f: any) => f.event && f.event >= currentEvent && f.event < currentEvent + gwCount
+  );
+
+  const rows: Record<number, FixtureDifficultyRow> = {};
+  for (const teamId of Object.keys(teams).map(Number)) {
+    rows[teamId] = { teamId, teamName: teams[teamId], gameweeks: [] };
+  }
+
+  for (const f of upcoming) {
+    rows[f.team_h].gameweeks.push({
+      event: f.event,
+      opponent: teams[f.team_a],
+      isHome: true,
+      difficulty: f.team_h_difficulty,
+    });
+    rows[f.team_a].gameweeks.push({
+      event: f.event,
+      opponent: teams[f.team_h],
+      isHome: false,
+      difficulty: f.team_a_difficulty,
+    });
+  }
+
+  return Object.values(rows).sort((a, b) => a.teamName.localeCompare(b.teamName));
+}
+// --- Manager's current team ---
+export interface SquadPlayer {
+  id: number;
+  name: string;
+  team: string;
+  position: string;
+  points: number;
+  isCaptain: boolean;
+  isViceCaptain: boolean;
+  isStarting: boolean;
+  multiplier: number;
+}
+
+export interface ManagerTeam {
+  managerName: string;
+  teamName: string;
+  gameweek: number;
+  totalPoints: number;
+  squad: SquadPlayer[];
+}
+
+async function getCurrentGameweek(): Promise<number> {
+  const res = await fetch("https://fantasy.premierleague.com/api/bootstrap-static/", {
+    next: { revalidate: 3600 },
+  });
+  if (!res.ok) throw new Error("Failed to fetch bootstrap data");
+  const data = await res.json();
+  return (
+    data.events.find((e: any) => e.is_current)?.id ??
+    data.events.find((e: any) => e.is_next)?.id ??
+    1
+  );
+}
+
+export async function getManagerTeam(entryId: number, gw?: number): Promise<ManagerTeam> {
+  const gameweek = gw ?? (await getCurrentGameweek());
+
+  const [bootstrapRes, entryRes, picksRes] = await Promise.all([
+    fetch("https://fantasy.premierleague.com/api/bootstrap-static/", { next: { revalidate: 3600 } }),
+    fetch(`https://fantasy.premierleague.com/api/entry/${entryId}/`, { next: { revalidate: 300 } }),
+    fetch(`https://fantasy.premierleague.com/api/entry/${entryId}/event/${gameweek}/picks/`, {
+      next: { revalidate: 300 },
+    }),
+  ]);
+
+  if (!bootstrapRes.ok || !entryRes.ok || !picksRes.ok) {
+    throw new Error("Failed to fetch manager team");
+  }
+
+  const bootstrap = await bootstrapRes.json();
+  const entry = await entryRes.json();
+  const picks = await picksRes.json();
+
+  const teams: Record<number, string> = Object.fromEntries(
+    bootstrap.teams.map((t: any) => [t.id, t.short_name])
+  );
+  const positions: Record<number, string> = { 1: "GKP", 2: "DEF", 3: "MID", 4: "FWD" };
+  const elementsById: Record<number, any> = Object.fromEntries(
+    bootstrap.elements.map((e: any) => [e.id, e])
+  );
+
+  const squad: SquadPlayer[] = picks.picks.map((p: any) => {
+    const el = elementsById[p.element];
+    return {
+      id: p.element,
+      name: `${el.first_name} ${el.second_name}`,
+      team: teams[el.team] ?? "",
+      position: positions[el.element_type] ?? "",
+      points: el.event_points ?? 0,
+      isCaptain: p.is_captain,
+      isViceCaptain: p.is_vice_captain,
+      isStarting: p.position <= 11,
+      multiplier: p.multiplier,
+    };
+  });
+
+  return {
+    managerName: `${entry.player_first_name} ${entry.player_last_name}`,
+    teamName: entry.name,
+    gameweek,
+    totalPoints: picks.entry_history?.points ?? 0,
+    squad,
   };
 }

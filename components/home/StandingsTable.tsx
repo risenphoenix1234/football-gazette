@@ -31,7 +31,7 @@ export default function StandingsTable({ standings }: { standings: StandingRow[]
         </thead>
         <tbody>
           {visible.map((team) => (
-            <tr key={team.position} className={`border-b border-black ${rowColor(team.position)}`}>
+            <tr key={team.club} className={`border-b border-black ${rowColor(team.position)}`}>
               <td className="py-4 pl-3 font-bold text-xl text-black flex items-center gap-2">
                 {team.crest && (
                   <Image src={team.crest} alt={team.club} width={24} height={24} unoptimized />
