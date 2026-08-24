@@ -9,15 +9,7 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    // Hardcoded for now — swap for real API later
-    if (email === "admin@footballgazette.com" && password === "admin123") {
-      router.push("/admin/dashboard");
-    } else {
-      setError("Invalid email or password");
-    }
-  }
+  
 
   return (
     <div style={{
