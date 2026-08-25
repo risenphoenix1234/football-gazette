@@ -10,15 +10,15 @@ export default function Footer() {
       <div className="mx-auto max-w-[1350px] border-t border-[#D9D9D9]" />
 
       {/* Main Footer */}
-      <div className="mx-auto max-w-[1230px] px-6 py-16">
-        <div className="grid grid-cols-1 gap-12 lg:grid-cols-4">
+      <div className="mx-auto max-w-[1230px] px-4 py-10 sm:px-6 sm:py-16">
+        <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 sm:gap-12 lg:grid-cols-4">
           {/* Column 1 */}
           <div>
-            <h3 className="mb-8 text-[20px] font-extrabold uppercase text-black">
+            <h3 className="mb-6 text-[18px] font-extrabold uppercase text-black sm:mb-8 sm:text-[20px]">
               FOOTBALL GAZETTE
             </h3>
 
-            <ul className="space-y-5 text-[18px] text-black">
+            <ul className="space-y-3 text-[16px] text-black sm:space-y-5 sm:text-[18px]">
               <li>FG Main Events</li>
               <li>FG Football</li>
               <li>FG Sport News</li>
@@ -28,11 +28,11 @@ export default function Footer() {
 
           {/* Column 2 */}
           <div>
-            <h3 className="mb-8 text-[20px] font-extrabold uppercase text-black">
+            <h3 className="mb-6 text-[18px] font-extrabold uppercase text-black sm:mb-8 sm:text-[20px]">
               PARTNERS
             </h3>
 
-            <ul className="space-y-5 text-[18px] text-black">
+            <ul className="space-y-3 text-[16px] text-black sm:space-y-5 sm:text-[18px]">
               <li>Skysport</li>
               <li>SportyBet</li>
               <li>Kings Bet</li>
@@ -42,11 +42,11 @@ export default function Footer() {
 
           {/* Column 3 */}
           <div>
-            <h3 className="mb-8 text-[20px] font-extrabold uppercase text-black">
+            <h3 className="mb-6 text-[18px] font-extrabold uppercase text-black sm:mb-8 sm:text-[20px]">
               MORE
             </h3>
 
-            <ul className="space-y-5 text-[18px] text-black">
+            <ul className="space-y-3 text-[16px] text-black sm:space-y-5 sm:text-[18px]">
               <li>FG TV</li>
               <li>FG News</li>
               <li>Store Locators</li>
@@ -56,17 +56,17 @@ export default function Footer() {
 
           {/* Column 4 */}
           <div>
-            <p className="mb-2 text-[18px] text-black">
+            <p className="mb-2 text-[16px] text-black sm:text-[18px]">
               News-letters
             </p>
 
-            <div className="mb-4 h-[56px] w-full bg-gradient-to-r from-[#B13CFF] to-[#9147F0] px-5 flex items-center">
-              <span className="text-[18px] italic text-white">
+            <div className="mb-4 flex h-[50px] w-full items-center bg-gradient-to-r from-[#B13CFF] to-[#9147F0] px-5 sm:h-[56px]">
+              <span className="text-[16px] italic text-white sm:text-[18px]">
                 Email
               </span>
             </div>
 
-            <div className="space-y-1 text-[18px] leading-tight text-[#666]">
+            <div className="space-y-1 text-[16px] leading-tight text-[#666] sm:text-[18px]">
               <p>Copywrite FOOTBALL GAZETTE</p>
               <p>(234)878 55 ---</p>
               <p>Contact FG</p>
@@ -77,28 +77,29 @@ export default function Footer() {
 
       {/* Purple Bottom Bar */}
       <div className="bg-[#6D1FB9]">
-        <div className="mx-auto flex h-[82px] max-w-[1230px] items-center justify-between px-6">
+        <div className="mx-auto flex max-w-[1230px] flex-col items-center gap-4 px-4 py-6 sm:h-[82px] sm:flex-row sm:justify-between sm:px-6 sm:py-0">
           {/* Logo */}
-          <div className="flex items-center gap-4">
+          <Link href="/" className="flex items-center gap-3">
             <Image
-              src="/logo-white.png"
-              alt="Football Gazette"
-              width={70}
-              height={70}
+              src="/logo.png"
+              alt="Football Gazette Logo"
+              width={52}
+              height={52}
+              className="shrink-0"
             />
 
-            <div className="text-white">
-              <div className="text-[24px] font-black leading-none">
-                FOOTBALL
-              </div>
-              <div className="text-[24px] font-black leading-none">
-                GAZETTE
-              </div>
+            <div className="leading-[1.1]">
+              <p className="text-white font-black text-[13px] tracking-[0.2em] uppercase">
+                Football
+              </p>
+              <p className="text-white font-black text-[13px] tracking-[0.2em] uppercase">
+                Gazette
+              </p>
             </div>
-          </div>
+          </Link>
 
           {/* Links */}
-          <div className="flex items-center gap-12 text-[16px] font-bold uppercase text-white">
+          <div className="flex flex-wrap items-center justify-center gap-4 text-[13px] font-bold uppercase text-white sm:gap-8 sm:text-[16px] lg:gap-12">
             <Link href="#">Accessibility</Link>
             <Link href="#">Disclaimer</Link>
             <Link href="#">Privacy</Link>
