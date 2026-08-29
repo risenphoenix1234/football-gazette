@@ -68,8 +68,13 @@ export default function Footer() {
 
             <div className="space-y-1 text-[16px] leading-tight text-[#666] sm:text-[18px]">
               <p>Copywrite FOOTBALL GAZETTE</p>
-              <p>(234)878 55 ---</p>
-              <p>Contact FG</p>
+              
+                <a href="mailto:Footballgazette23@gmail.com"
+                className="block hover:text-purple-700"
+              >
+                Footballgazette23@gmail.com
+              </a>
+           
             </div>
           </div>
         </div>
@@ -100,10 +105,10 @@ export default function Footer() {
 
           {/* Links */}
           <div className="flex flex-wrap items-center justify-center gap-4 text-[13px] font-bold uppercase text-white sm:gap-8 sm:text-[16px] lg:gap-12">
-            <Link href="#">Accessibility</Link>
-            <Link href="#">Disclaimer</Link>
-            <Link href="#">Privacy</Link>
-            <Link href="#">About</Link>
+            <Link href="/accessibility">Accessibility</Link>
+            <Link href="/disclaimer">Disclaimer</Link>
+            <Link href="privacy">Privacy</Link>
+            <Link href="/About">About</Link>
           </div>
         </div>
       </div>

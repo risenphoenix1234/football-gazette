@@ -1,12 +1,13 @@
-// app/standings/page.tsx
+// app/Fantasy-premier-league/page.tsx
 
-import { getLeagueStandings } from "@/lib/fpl";
+import { getLeagueStandings, getManagerOfTheMonth } from "@/lib/fpl";
 import Navbar from "@/components/home/Navbar";
 import Footer from "@/components/home/FooterBar";
 import StandingsList from "@/components/home/StandingsList";
 
 import TopPlayersTable from "@/components/fpl/TopPlayersTable";
 import FixtureDifficultyCalendar from "@/components/fpl/FixtureDifficultyCalendar";
+import ManagerOfTheMonth from "@/components/fpl/ManagerOfTheMonth";
 
 export default async function StandingsPage() {
   let data: Awaited<ReturnType<typeof getLeagueStandings>> | null = null;
@@ -40,12 +41,17 @@ export default async function StandingsPage() {
 
   const { leagueName, entries, hasStarted } = data;
 
+  const motm = hasStarted
+    ? await getManagerOfTheMonth(entries).catch((err) => {
+        console.error("StandingsPage: failed to load manager of the month", err);
+        return null;
+      })
+    : null;
+
   return (
     <>
       <Navbar />
-      <main
-  className="min-h-screen bg-[#faf7f2] bg-[radial-gradient(circle,_rgba(88,28,135,0.18)_2px,_transparent_2px)] bg-[length:24px_24px]"
->
+      <main className="min-h-screen bg-[#faf7f2] bg-[radial-gradient(circle,_rgba(88,28,135,0.18)_2px,_transparent_2px)] bg-[length:24px_24px]">
         {/* Hero banner */}
         <section className="bg-gradient-to-br from-purple-900 via-purple-800 to-purple-700 pt-28 pb-14 sm:pt-16 sm:py-16">
           <div className="mx-auto max-w-4xl px-6 text-center">
@@ -102,6 +108,8 @@ export default async function StandingsPage() {
             </div>
           </div>
         </section>
+
+        {motm && <ManagerOfTheMonth data={motm} />}
       </main>
       <TopPlayersTable />
       <FixtureDifficultyCalendar />

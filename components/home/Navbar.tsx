@@ -1,7 +1,7 @@
 "use client";
 import Image from "next/image";
 import Link from "next/link";
-   
+import { usePathname, useRouter } from "next/navigation";
 
 import { useEffect, useState } from "react";
 
@@ -15,6 +15,9 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [active, setActive] = useState("home");
   const [menuOpen, setMenuOpen] = useState(false);
+
+  const pathname = usePathname();
+  const router = useRouter();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
@@ -30,10 +33,38 @@ export default function Navbar() {
     };
   }, [menuOpen]);
 
+  // If we land on the homepage with a hash (e.g. after being redirected
+  // from another page), scroll to that section once it's mounted.
+  useEffect(() => {
+    if (pathname !== "/") return;
+    const hash = window.location.hash;
+    if (!hash) return;
+
+    const id = hash.slice(1);
+    const timeout = setTimeout(() => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        setActive(id);
+      }
+    }, 150);
+
+    return () => clearTimeout(timeout);
+  }, [pathname]);
+
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
+    setMenuOpen(false);
+
+    // Not on the homepage — let the link navigate normally to /#id,
+    // the effect above will scroll once we land there.
+    if (pathname !== "/") {
+      setActive(id);
+      return;
+    }
+
+    // Already on the homepage — just smooth-scroll, no page reload.
     e.preventDefault();
     setActive(id);
-    setMenuOpen(false);
     const el = document.getElementById(id);
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -47,32 +78,32 @@ export default function Navbar() {
       }`}
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex items-center justify-between py-3 sm:py-5">
-    {/* LOGO */}
-<Link href="/" className="flex items-center gap-3">
-  <Image
-    src="/logo.png"
-    alt="Football Gazette Logo"
-    width={52}
-    height={52}
-    className="shrink-0"
-  />
+        {/* LOGO */}
+        <Link href="/" className="flex items-center gap-3">
+          <Image
+            src="/logo.png"
+            alt="Football Gazette Logo"
+            width={52}
+            height={52}
+            className="shrink-0"
+          />
 
-  <div className="leading-[1.1]">
-    <p className="text-white font-black text-[13px] tracking-[0.2em] uppercase">
-      Football
-    </p>
-    <p className="text-white font-black text-[13px] tracking-[0.2em] uppercase">
-      Gazette
-    </p>
-  </div>
-</Link>
+          <div className="leading-[1.1]">
+            <p className="text-white font-black text-[13px] tracking-[0.2em] uppercase">
+              Football
+            </p>
+            <p className="text-white font-black text-[13px] tracking-[0.2em] uppercase">
+              Gazette
+            </p>
+          </div>
+        </Link>
 
-{/* NAV LINKS (desktop) */}
+        {/* NAV LINKS (desktop) */}
         <ul className="hidden md:flex items-center gap-10">
           {NAV_LINKS.map(({ label, id }) => (
             <li key={id}>
               
-                <a href={`#${id}`}
+               <a href={`/#${id}`}
                 onClick={(e) => handleNavClick(e, id)}
                 className={`text-[13px] font-bold tracking-widest uppercase pb-0.5 transition-colors ${
                   active === id
@@ -155,7 +186,7 @@ export default function Navbar() {
           {NAV_LINKS.map(({ label, id }) => (
             <li key={id}>
               
-               <a  href={`#${id}`}
+              <a href={`/#${id}`}
                 onClick={(e) => handleNavClick(e, id)}
                 className={`block py-3 text-[13px] font-bold tracking-widest uppercase border-b border-white/10 ${
                   active === id ? "text-white" : "text-white/80"

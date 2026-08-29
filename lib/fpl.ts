@@ -307,3 +307,101 @@ export async function getManagerTeam(entryId: number, gw?: number): Promise<Mana
     squad,
   };
 }
+// --- Manager of the Month ---
+export interface ManagerOfMonth {
+  entryId: number;
+  managerName: string;
+  teamName: string;
+  monthPoints: number;
+  gameweeks: number[];
+}
+
+export interface ManagerOfMonthResult {
+  monthKey: string;
+  monthLabel: string;
+  winner: ManagerOfMonth | null;
+  leaderboard: ManagerOfMonth[];
+}
+
+async function getMonthGameweeks(monthKey?: string) {
+  const res = await fetch("https://fantasy.premierleague.com/api/bootstrap-static/", {
+    next: { revalidate: 3600 },
+  });
+  if (!res.ok) throw new Error("Failed to fetch bootstrap data");
+  const data = await res.json();
+
+  const now = new Date();
+  const targetMonth =
+    monthKey ?? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+  const events: number[] = [];
+  let monthLabel = "";
+
+  for (const e of data.events) {
+    if (!e.deadline_time) continue;
+    const d = new Date(e.deadline_time);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    if (key === targetMonth) {
+      events.push(e.id);
+      monthLabel = d.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+    }
+  }
+
+  return { monthKey: targetMonth, monthLabel, events };
+}
+
+/**
+ * Sums each manager's points across the gameweeks that fall in the given
+ * calendar month (defaults to the current month) and ranks them.
+ * Requires one history fetch per manager — fine for a small private league,
+ * but reconsider batching/caching if the league grows to hundreds of entries.
+ */
+export async function getManagerOfTheMonth(
+  entries: { entryId: number; managerName: string; teamName: string }[],
+  monthKey?: string
+): Promise<ManagerOfMonthResult> {
+  const { monthKey: resolvedKey, monthLabel, events } = await getMonthGameweeks(monthKey);
+
+  if (events.length === 0) {
+    return { monthKey: resolvedKey, monthLabel, winner: null, leaderboard: [] };
+  }
+
+  const results = await Promise.all(
+    entries.map(async (entry): Promise<ManagerOfMonth | null> => {
+      try {
+        const res = await fetch(
+          `https://fantasy.premierleague.com/api/entry/${entry.entryId}/history/`,
+          { next: { revalidate: 3600 } }
+        );
+        if (!res.ok) return null;
+        const data = await res.json();
+        const current: { event: number; points: number }[] = data.current ?? [];
+
+        const monthPoints = current
+          .filter((gw) => events.includes(gw.event))
+          .reduce((sum, gw) => sum + gw.points, 0);
+
+        return {
+          entryId: entry.entryId,
+          managerName: entry.managerName,
+          teamName: entry.teamName,
+          monthPoints,
+          gameweeks: events,
+        };
+      } catch {
+        return null;
+      }
+    })
+  );
+
+  const leaderboard = results
+    .filter((r): r is ManagerOfMonth => r !== null)
+    .sort((a, b) => b.monthPoints - a.monthPoints);
+
+  return {
+    monthKey: resolvedKey,
+    monthLabel,
+    winner: leaderboard[0] ?? null,
+    leaderboard,
+  };
+}
