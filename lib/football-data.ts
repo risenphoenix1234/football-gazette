@@ -71,9 +71,22 @@ export async function getUpcomingEPLFixtures(limit = 5): Promise<Fixture[]> {
 
   const data: { matches: RawMatch[] } = await res.json();
 
-  // matches come back sorted by date ascending already, but sort defensively
-  const sorted = [...data.matches].sort(
+  const now = Date.now();
+
+  // Defensive filter: football-data.org's SCHEDULED status can lag a few
+  // minutes behind actual kickoff, so a match that's already started can
+  // still come back tagged SCHEDULED. Drop anything whose kickoff has
+  // already passed so the "next match" / countdown never gets stuck.
+  const stillUpcoming = data.matches.filter(
+    (m) => new Date(m.utcDate).getTime() > now
+  );
+
+  const sorted = [...stillUpcoming].sort(
     (a, b) => new Date(a.utcDate).getTime() - new Date(b.utcDate).getTime()
+  );
+
+  console.log(
+    `[football-data] ${data.matches.length} scheduled, ${sorted.length} actually upcoming, next: ${sorted[0]?.utcDate ?? "none"}`
   );
 
   return sorted.slice(0, limit).map((m) => ({
@@ -86,7 +99,6 @@ export async function getUpcomingEPLFixtures(limit = 5): Promise<Fixture[]> {
     venue: m.venue,
   }));
 }
-
 
 export type StandingRow = {
   position: number;
