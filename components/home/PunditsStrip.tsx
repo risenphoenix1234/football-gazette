@@ -11,18 +11,29 @@ const PUNDITS = [
   },
   {
     id: 2,
-    name: "Dios Ayudame",
-    title: "Dios Says: Manchester united will win the league",
+    name: "Tunmise A.",
+    title: "Tunmise A. Says: Manchester united will win the league",
     img: "/Dios-ayudame.jpg",
   },
+  {
+    id: 3,
+    name: "Olusola Victor",
+    title: "Olusola Victor Says: Arsenal will choke again before the season ends",
+    img: "/Olusola-Victor.jpg",
+  },
+  {
+    id: 4,
+    name: "Toheeb Adesola",
+    title: "Toheeb Adesola Says: Messi is still better than Ronaldo, no debate",
+    img: "/Toheeb-Adesola.jpg",
+  },
   // {
-  //   id: 3,
+  //   id: 5,
   //   name: "MJAY-OFFICIAL",
   //   title: "MjAY Says: Ronaldo remains the GOAT despite World-Cup lose",
   //   img: "/pundits/mjay-official.jpg",
   // },
 ];
-
 export default function PunditsStrip() {
   return (
     <section className="bg-[#f3f3f3] py-12 sm:py-16 lg:py-24">
