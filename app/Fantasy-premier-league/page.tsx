@@ -109,7 +109,7 @@ export default async function StandingsPage() {
           </div>
         </section>
 
-        {motm && <ManagerOfTheMonth data={motm} />}
+      {motm && motm.winners.length > 0 && <ManagerOfTheMonth data={motm} />}  
       </main>
       <TopPlayersTable />
       <FixtureDifficultyCalendar />
