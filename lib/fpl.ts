@@ -319,7 +319,8 @@ export interface ManagerOfMonth {
 export interface ManagerOfMonthResult {
   monthKey: string;
   monthLabel: string;
-  winner: ManagerOfMonth | null;
+  // More than one entry here means a tie — everyone with the top score wins.
+  winners: ManagerOfMonth[];
   leaderboard: ManagerOfMonth[];
 }
 
@@ -362,8 +363,8 @@ export async function getManagerOfTheMonth(
 ): Promise<ManagerOfMonthResult> {
   const { monthKey: resolvedKey, monthLabel, events } = await getMonthGameweeks(monthKey);
 
-  if (events.length === 0) {
-    return { monthKey: resolvedKey, monthLabel, winner: null, leaderboard: [] };
+   if (events.length === 0) {
+    return { monthKey: resolvedKey, monthLabel, winners: [], leaderboard: [] };
   }
 
   const results = await Promise.all(
@@ -394,14 +395,21 @@ export async function getManagerOfTheMonth(
     })
   );
 
-  const leaderboard = results
+    const leaderboard = results
     .filter((r): r is ManagerOfMonth => r !== null)
     .sort((a, b) => b.monthPoints - a.monthPoints);
+
+  // Everyone tied at the top score is a winner, not just the first one sorted.
+  const topScore = leaderboard[0]?.monthPoints;
+  const winners =
+    topScore !== undefined
+      ? leaderboard.filter((m) => m.monthPoints === topScore)
+      : [];
 
   return {
     monthKey: resolvedKey,
     monthLabel,
-    winner: leaderboard[0] ?? null,
+    winners,
     leaderboard,
   };
 }
