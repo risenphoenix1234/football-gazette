@@ -58,6 +58,12 @@ export default async function StandingsPage() {
       })
     : [];
 
+  // Every manager tied at the top isn't a meaningful "winner" yet — it just
+  // means only a partial/early gameweek has counted. Only show the current
+  // month's card once fewer than the full league is tied for first.
+  const showCurrentMonth =
+    !!motm && motm.winners.length > 0 && motm.winners.length < entries.length;
+
   return (
     <>
       <Navbar />
@@ -119,7 +125,7 @@ export default async function StandingsPage() {
           </div>
         </section>
 
-        {motm && motm.winners.length > 0 && <ManagerOfTheMonth data={motm} />}
+        {showCurrentMonth && <ManagerOfTheMonth data={motm} />}
         <PastManagersOfTheMonth months={pastMonths} />
       </main>
       <TopPlayersTable />
