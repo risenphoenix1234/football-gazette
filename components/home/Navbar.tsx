@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 const NAV_LINKS = [
   { label: "Features", id: "features" },
   { label: "Latest News", id: "latest-news" },
-  { label: "Contact Us", id: "/contact-us" },
+  { label: "Contact Us", id: "contact-us" },
 ];
 
 export default function Navbar() {
@@ -55,13 +55,6 @@ export default function Navbar() {
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
     setMenuOpen(false);
 
-    // Real page routes (e.g. "/contact-us") — let Next navigate normally,
-    // no scroll logic needed.
-    if (id.startsWith("/")) {
-      setActive(id);
-      return;
-    }
-
     // Not on the homepage — let the link navigate normally to /#id,
     // the effect above will scroll once we land there.
     if (pathname !== "/") {
@@ -77,8 +70,6 @@ export default function Navbar() {
       el.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   };
-
-  const getHref = (id: string) => (id.startsWith("/") ? id : `/#${id}`);
 
   return (
     <nav
@@ -111,8 +102,8 @@ export default function Navbar() {
         <ul className="hidden md:flex items-center gap-10">
           {NAV_LINKS.map(({ label, id }) => (
             <li key={id}>
-              <a
-                href={getHref(id)}
+              
+               <a href={`/#${id}`}
                 onClick={(e) => handleNavClick(e, id)}
                 className={`text-[13px] font-bold tracking-widest uppercase pb-0.5 transition-colors ${
                   active === id
@@ -194,8 +185,8 @@ export default function Navbar() {
         <ul className="flex flex-col px-4 pb-4 pt-2 gap-1">
           {NAV_LINKS.map(({ label, id }) => (
             <li key={id}>
-              <a
-                href={getHref(id)}
+              
+              <a href={`/#${id}`}
                 onClick={(e) => handleNavClick(e, id)}
                 className={`block py-3 text-[13px] font-bold tracking-widest uppercase border-b border-white/10 ${
                   active === id ? "text-white" : "text-white/80"

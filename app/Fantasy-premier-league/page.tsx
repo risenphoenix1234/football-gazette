@@ -1,13 +1,16 @@
 // app/Fantasy-premier-league/page.tsx
 
-import { getLeagueStandings, getManagerOfTheMonth } from "@/lib/fpl";
+import { getLeagueStandings, getManagerOfTheMonth, getPastManagersOfTheMonth } from "@/lib/fpl";
+
 import Navbar from "@/components/home/Navbar";
 import Footer from "@/components/home/FooterBar";
 import StandingsList from "@/components/home/StandingsList";
 
 import TopPlayersTable from "@/components/fpl/TopPlayersTable";
 import FixtureDifficultyCalendar from "@/components/fpl/FixtureDifficultyCalendar";
+
 import ManagerOfTheMonth from "@/components/fpl/ManagerOfTheMonth";
+import PastManagersOfTheMonth from "@/components/fpl/PastManagersOfTheMonth";
 
 export default async function StandingsPage() {
   let data: Awaited<ReturnType<typeof getLeagueStandings>> | null = null;
@@ -47,6 +50,13 @@ export default async function StandingsPage() {
         return null;
       })
     : null;
+
+  const pastMonths = hasStarted
+    ? await getPastManagersOfTheMonth(entries).catch((err) => {
+        console.error("StandingsPage: failed to load past managers of the month", err);
+        return [];
+      })
+    : [];
 
   return (
     <>
@@ -109,7 +119,8 @@ export default async function StandingsPage() {
           </div>
         </section>
 
-      {motm && motm.winners.length > 0 && <ManagerOfTheMonth data={motm} />}  
+        {motm && motm.winners.length > 0 && <ManagerOfTheMonth data={motm} />}
+        <PastManagersOfTheMonth months={pastMonths} />
       </main>
       <TopPlayersTable />
       <FixtureDifficultyCalendar />

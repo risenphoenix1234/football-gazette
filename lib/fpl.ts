@@ -413,3 +413,48 @@ export async function getManagerOfTheMonth(
     leaderboard,
   };
 }
+
+// Returns distinct "YYYY-MM" keys for every month that has at least one
+// finished gameweek, most recent first. Used to know which past months
+// are worth showing a Manager of the Month card for.
+async function getMonthsWithFinishedGameweeks(): Promise<string[]> {
+  const res = await fetch("https://fantasy.premierleague.com/api/bootstrap-static/", {
+    next: { revalidate: 3600 },
+  });
+  if (!res.ok) throw new Error("Failed to fetch bootstrap data");
+  const data = await res.json();
+
+  const months = new Set<string>();
+  for (const e of data.events) {
+    if (!e.deadline_time || !e.finished) continue;
+    const d = new Date(e.deadline_time);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    months.add(key);
+  }
+
+  return Array.from(months).sort((a, b) => b.localeCompare(a)); // most recent first
+}
+
+/**
+ * Manager of the Month for each of the last `limit` completed months
+ * (excludes the current month — use getManagerOfTheMonth for that).
+ * Skips any month that somehow resolves with no winners (shouldn't
+ * normally happen once a month has finished gameweeks).
+ */
+export async function getPastManagersOfTheMonth(
+  entries: { entryId: number; managerName: string; teamName: string }[],
+  limit = 6
+): Promise<ManagerOfMonthResult[]> {
+  const allMonths = await getMonthsWithFinishedGameweeks();
+
+  const now = new Date();
+  const currentKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+  const pastKeys = allMonths.filter((k) => k !== currentKey).slice(0, limit);
+
+  const results = await Promise.all(
+    pastKeys.map((key) => getManagerOfTheMonth(entries, key))
+  );
+
+  return results.filter((r) => r.winners.length > 0);
+}
