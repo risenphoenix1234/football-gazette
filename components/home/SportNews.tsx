@@ -50,60 +50,72 @@ export default function SportNews() {
               className="overflow-x-auto scroll-smooth scrollbar-hide [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             >
               <div className="flex min-w-max gap-3 sm:gap-0">
-                {news.map((item, index) => (
-                  <a key={item.id} href={item.url} target="_blank" rel="noopener noreferrer">
-                    <article className="relative h-[320px] w-[220px] sm:h-[400px] sm:w-[280px] lg:h-[460px] lg:w-[320px] flex-shrink-0 overflow-hidden">
-                      <Image
-                        src={item.image}
-                        alt={item.title}
-                        fill
-                        className="object-cover"
-                        unoptimized
-                      />
-                      <div
-                        className={`absolute inset-0 ${
-                          index === 0 ? "bg-purple-700/55" : "bg-black/55"
-                        }`}
-                      />
+             {news.map((item, index) => {
+  const isOwn = item.url.startsWith("/news/own-");
 
-                      <div className="absolute inset-0 flex flex-col justify-end p-4 sm:p-6 lg:p-8 text-white">
-                        <span className="mb-2 sm:mb-3 lg:mb-4 text-[10px] sm:text-sm lg:text-lg font-semibold uppercase text-purple-400">
-                          {item.category}
-                        </span>
-                        <h3 className="text-[13px] sm:text-[17px] lg:text-[22px] font-bold leading-tight line-clamp-3">
-                          {item.title}
-                        </h3>
+  const cardContent = (
+    <article className="relative h-[320px] w-[220px] sm:h-[400px] sm:w-[280px] lg:h-[460px] lg:w-[320px] flex-shrink-0 overflow-hidden">
+      <Image
+        src={item.image}
+        alt={item.title}
+        fill
+        className="object-cover"
+        unoptimized
+      />
+      <div
+        className={`absolute inset-0 ${
+          index === 0 ? "bg-purple-700/55" : "bg-black/55"
+        }`}
+      />
 
-                        <div className="mt-4 sm:mt-6 lg:mt-8 flex items-center gap-2 sm:gap-3">
-                          {item.avatar ? (
-                            <div className="relative h-8 w-8 sm:h-11 sm:w-11 lg:h-14 lg:w-14 flex-shrink-0 aspect-square overflow-hidden rounded-full border-2 border-white">
-                              <Image
-                                src={item.avatar}
-                                alt={item.author}
-                                fill
-                                className="object-cover"
-                                unoptimized
-                              />
-                            </div>
-                          ) : (
-                            <div className="flex h-8 w-8 sm:h-11 sm:w-11 lg:h-14 lg:w-14 flex-shrink-0 aspect-square items-center justify-center rounded-full border-2 border-white bg-purple-600 text-xs sm:text-base lg:text-lg font-bold">
-                              {item.source.charAt(0)}
-                            </div>
-                          )}
+      <div className="absolute inset-0 flex flex-col justify-end p-4 sm:p-6 lg:p-8 text-white">
+        <span className="mb-2 sm:mb-3 lg:mb-4 text-[10px] sm:text-sm lg:text-lg font-semibold uppercase text-purple-400">
+          {item.category}
+        </span>
+        <h3 className="text-[13px] sm:text-[17px] lg:text-[22px] font-bold leading-tight line-clamp-3">
+          {item.title}
+        </h3>
 
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-xs sm:text-base lg:text-lg font-bold">
-                              {item.author}
-                            </p>
-                            <p className="truncate text-[10px] sm:text-xs lg:text-sm text-white/80">
-                              {item.source}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </article>
-                  </a>
-                ))}
+        <div className="mt-4 sm:mt-6 lg:mt-8 flex items-center gap-2 sm:gap-3">
+          {item.avatar ? (
+            <div className="relative h-8 w-8 sm:h-11 sm:w-11 lg:h-14 lg:w-14 flex-shrink-0 aspect-square overflow-hidden rounded-full border-2 border-white">
+              <Image
+                src={item.avatar}
+                alt={item.author}
+                fill
+                className="object-cover"
+                unoptimized
+              />
+            </div>
+          ) : (
+            <div className="flex h-8 w-8 sm:h-11 sm:w-11 lg:h-14 lg:w-14 flex-shrink-0 aspect-square items-center justify-center rounded-full border-2 border-white bg-purple-600 text-xs sm:text-base lg:text-lg font-bold">
+              {item.source.charAt(0)}
+            </div>
+          )}
+
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-xs sm:text-base lg:text-lg font-bold">
+              {item.author}
+            </p>
+            <p className="truncate text-[10px] sm:text-xs lg:text-sm text-white/80">
+              {item.source}
+            </p>
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+
+  return isOwn ? (
+    <Link key={item.id} href={item.url}>
+      {cardContent}
+    </Link>
+  ) : (
+    <a key={item.id} href={item.url} target="_blank" rel="noopener noreferrer">
+      {cardContent}
+    </a>
+  );
+})}
               </div>
             </div>
 

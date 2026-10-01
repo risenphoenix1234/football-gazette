@@ -1,6 +1,7 @@
-// src/components/AdminDashboard.tsx
+// app/admin/dashboard/page.tsx
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { signOut } from "next-auth/react";
 
 type Article = {
   id: number;
@@ -49,11 +50,15 @@ const editorStyles = `
 `;
 
 export default function AdminDashboard() {
+  const IMAGE_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
   const [panel, setPanel] = useState<"create" | "articles">("create");
   const [articles, setArticles] = useState<Article[]>([]);
+  const [loadingArticles, setLoadingArticles] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<"draft" | "published">("draft");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [imageData, setImageData] = useState<string | null>(null);
+  const [uploadingCover, setUploadingCover] = useState(false);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
 
   const titleRef = useRef<HTMLTextAreaElement>(null);
@@ -66,10 +71,89 @@ export default function AdminDashboard() {
 
   const [charCount, setCharCount] = useState(0);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [selectedImage, setSelectedImage] = useState<HTMLImageElement | null>(null);
+const [toolbarPos, setToolbarPos] = useState<{ top: number; left: number } | null>(null);
 
   function showToast(msg: string, ok = true) {
     setToast({ msg, ok });
     setTimeout(() => setToast(null), 2800);
+  }
+
+  function selectImageForEditing(img: HTMLImageElement) {
+  setSelectedImage(img);
+  const editorRect = bodyRef.current?.getBoundingClientRect();
+  const imgRect = img.getBoundingClientRect();
+  if (editorRect) {
+    setToolbarPos({
+      top: imgRect.top - editorRect.top - 44,
+      left: imgRect.left - editorRect.left,
+    });
+  }
+}
+
+function deselectImage() {
+  setSelectedImage(null);
+  setToolbarPos(null);
+}
+
+function handleBodyClick(e: React.MouseEvent<HTMLDivElement>) {
+  const target = e.target as HTMLElement;
+  if (target.tagName === "IMG") {
+    selectImageForEditing(target as HTMLImageElement);
+  } else {
+    deselectImage();
+  }
+}
+
+function alignSelectedImage(align: "left" | "center" | "right") {
+  if (!selectedImage) return;
+
+  if (align === "left") {
+    selectedImage.style.float = "left";
+    selectedImage.style.display = "block";
+    selectedImage.style.margin = "4px 16px 8px 0";
+  } else if (align === "right") {
+    selectedImage.style.float = "right";
+    selectedImage.style.display = "block";
+    selectedImage.style.margin = "4px 0 8px 16px";
+  } else {
+    selectedImage.style.float = "none";
+    selectedImage.style.display = "block";
+    selectedImage.style.margin = "12px auto";
+  }
+
+  updateCharCount();
+  // Reposition the toolbar since the image likely moved
+  selectImageForEditing(selectedImage);
+}
+
+function resizeSelectedImage(percent: number) {
+  if (!selectedImage) return;
+  selectedImage.style.width = `${percent}%`;
+  selectedImage.style.height = "auto";
+  selectedImage.style.maxWidth = "100%";
+  updateCharCount();
+  selectImageForEditing(selectedImage);
+}
+
+  // ---- LOAD ARTICLES ON MOUNT ----
+  useEffect(() => {
+    loadArticles();
+  }, []);
+
+  async function loadArticles() {
+    setLoadingArticles(true);
+    try {
+      const res = await fetch("/api/admin/articles", { cache: "no-store" });
+      if (!res.ok) throw new Error("Failed to load articles");
+      const data: Article[] = await res.json();
+      setArticles(data);
+    } catch (err) {
+      console.error(err);
+      showToast("Couldn't load articles from the server", false);
+    } finally {
+      setLoadingArticles(false);
+    }
   }
 
   function clearForm() {
@@ -98,40 +182,103 @@ export default function AdminDashboard() {
     };
   }
 
-  function saveArticle(overrideStatus?: "draft" | "published") {
+  // ---- SAVE (create or update) ----
+  async function saveArticle(overrideStatus?: "draft" | "published") {
     const data = getFormData();
     if (!data.title) { showToast("Please enter a headline", false); return; }
     if (!data.body) { showToast("Please write some content", false); return; }
+
     const finalStatus = overrideStatus ?? status;
-    const article: Article = {
-      ...data,
-      status: finalStatus,
-      id: editingId ?? Date.now(),
-      date: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
-    };
-    if (editingId !== null) {
-      setArticles(prev => prev.map(a => a.id === editingId ? article : a));
-    } else {
-      setArticles(prev => [article, ...prev]);
+    const payload = { ...data, status: finalStatus };
+
+    setSaving(true);
+    try {
+      const isEditing = editingId !== null;
+      const res = await fetch(
+        isEditing ? `/api/admin/articles/${editingId}` : "/api/admin/articles",
+        {
+          method: isEditing ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to save article");
+      }
+
+      const saved: Article = await res.json();
+
+      setArticles((prev) =>
+        isEditing ? prev.map((a) => (a.id === saved.id ? saved : a)) : [saved, ...prev]
+      );
+
+      showToast(finalStatus === "published" ? "Article published!" : "Draft saved!");
+      clearForm();
+      if (finalStatus === "published") setPanel("articles");
+    } catch (err) {
+      console.error(err);
+      showToast(err instanceof Error ? err.message : "Failed to save article", false);
+    } finally {
+      setSaving(false);
     }
-    showToast(finalStatus === "published" ? "Article published!" : "Draft saved!");
-    clearForm();
-    if (finalStatus === "published") setPanel("articles");
   }
 
-  function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  // ---- IMAGE UPLOAD (cover) ----
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => setImageData(ev.target?.result as string);
-    reader.readAsDataURL(file);
+
+    setUploadingCover(true);
+    try {
+      const url = await uploadImage(file);
+      setImageData(url);
+    } catch (err) {
+      console.error(err);
+      showToast(err instanceof Error ? err.message : "Image upload failed", false);
+    } finally {
+      setUploadingCover(false);
+      e.target.value = "";
+    }
   }
 
-  function deleteArticle(id: number) {
-    setArticles(prev => prev.filter(a => a.id !== id));
+async function uploadImage(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append("image", file);
+
+  const res = await fetch("/api/admin/upload-image", {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Image upload failed");
+  }
+
+  const data: { url: string } = await res.json();
+  return `${IMAGE_BASE}${data.url}`; // now absolute, e.g. http://localhost:4000/uploads/xyz.jpg
+}
+
+  // ---- DELETE ----
+async function deleteArticle(id: number, title: string) {
+  const confirmed = window.confirm(`Delete "${title}"? This cannot be undone.`);
+  if (!confirmed) return;
+
+  const prev = articles;
+  setArticles((cur) => cur.filter((a) => a.id !== id)); // optimistic
+
+  try {
+    const res = await fetch(`/api/admin/articles/${id}`, { method: "DELETE" });
+    if (!res.ok && res.status !== 204) throw new Error("Failed to delete article");
     showToast("Article deleted");
+  } catch (err) {
+    console.error(err);
+    setArticles(prev); // roll back
+    showToast("Couldn't delete article", false);
   }
-
+}
   function editArticle(a: Article) {
     setPanel("create");
     setTimeout(() => {
@@ -139,15 +286,17 @@ export default function AdminDashboard() {
       if (categoryRef.current) categoryRef.current.value = a.category;
       if (authorRef.current) authorRef.current.value = a.author;
       if (excerptRef.current) excerptRef.current.value = a.excerpt;
-      if (bodyRef.current) { 
-        bodyRef.current.innerHTML = a.body; 
+      if (bodyRef.current) {
+        bodyRef.current.innerHTML = a.body;
         setCharCount(bodyRef.current.innerText.length);
       }
       setImageData(a.image);
       setStatus(a.status);
       setSelectedTags(a.tags);
       setEditingId(a.id);
-      setArticles(prev => prev.filter(x => x.id !== a.id));
+      // No longer removing from local list here — the article still exists
+      // on the server until you actually save your edits (PUT), so we leave
+      // it in place. If you cancel out of editing, nothing is lost.
     }, 50);
   }
 
@@ -181,23 +330,29 @@ export default function AdminDashboard() {
     updateCharCount();
   }
 
-  function insertImageAtCursor(dataUrl: string) {
+  function insertImageAtCursor(url: string) {
     focusBody();
     document.execCommand(
       "insertHTML",
       false,
-      `<img src="${dataUrl}" style="max-width:100%;border-radius:8px;margin:12px 0;display:block;" />`
+      `<img src="${url}" style="max-width:100%;border-radius:8px;margin:12px 0;display:block;" />`
     );
     updateCharCount();
   }
 
-  function handleBodyImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleBodyImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => insertImageAtCursor(ev.target?.result as string);
-    reader.readAsDataURL(file);
-    e.target.value = "";
+
+    try {
+      const url = await uploadImage(file);
+      insertImageAtCursor(url);
+    } catch (err) {
+      console.error(err);
+      showToast(err instanceof Error ? err.message : "Image upload failed", false);
+    } finally {
+      e.target.value = "";
+    }
   }
 
   const FORMAT_BUTTONS: { label: string; title: string; action: () => void }[] = [
@@ -264,6 +419,14 @@ export default function AdminDashboard() {
               <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Super Editor</span>
             </div>
           </div>
+        
+        <button
+  onClick={() => signOut({ callbackUrl: "/admin/login" })}
+  style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", background: "none", border: "none", cursor: "pointer", marginTop: 4 }}
+>
+  Sign out
+</button>
+        
         </aside>
 
         {/* MAIN */}
@@ -280,7 +443,9 @@ export default function AdminDashboard() {
             </div>
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={() => setPanel("articles")} style={ghostBtn}>All Articles</button>
-              <button onClick={() => saveArticle("published")} style={primaryBtn}>Publish Now</button>
+              <button onClick={() => saveArticle("published")} disabled={saving} style={primaryBtn}>
+                {saving ? "Publishing..." : "Publish Now"}
+              </button>
             </div>
           </div>
 
@@ -345,23 +510,77 @@ export default function AdminDashboard() {
                         style={{ display: "none" }}
                         onChange={handleBodyImageUpload}
                       />
+<div style={{ position: "relative" }}>
+  <div
+    ref={bodyRef}
+    contentEditable
+    suppressContentEditableWarning
+    onInput={updateCharCount}
+    onClick={handleBodyClick}
+    data-placeholder="Write the full story here..."
+    style={{
+      ...inputBase,
+      borderRadius: "0 0 8px 8px",
+      minHeight: 220,
+      overflowY: "auto",
+      lineHeight: 1.6,
+      background: "#fff",
+      fontFamily: "'DM Sans', sans-serif",
+    }}
+  />
 
-                      <div
-                        ref={bodyRef}
-                        contentEditable
-                        suppressContentEditableWarning
-                        onInput={updateCharCount}
-                        data-placeholder="Write the full story here..."
-                        style={{
-                          ...inputBase,
-                          borderRadius: "0 0 8px 8px",
-                          minHeight: 220,
-                          overflowY: "auto",
-                          lineHeight: 1.6,
-                          background: "#fff",
-                          fontFamily: "'DM Sans', sans-serif",
-                        }}
-                      />
+  {selectedImage && toolbarPos && (
+    <div
+      style={{
+        position: "absolute",
+        top: Math.max(toolbarPos.top, 0),
+        left: toolbarPos.left,
+        display: "flex",
+        alignItems: "center",
+        gap: 4,
+        background: "#1f2937",
+        borderRadius: 8,
+        padding: "6px 8px",
+        boxShadow: "0 4px 12px rgba(0,0,0,0.25)",
+        zIndex: 10,
+      }}
+    >
+      <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginRight: 2 }}>
+        Align
+      </span>
+      <button type="button" onClick={() => alignSelectedImage("left")} style={imgToolbarBtn}>
+        ⬅
+      </button>
+      <button type="button" onClick={() => alignSelectedImage("center")} style={imgToolbarBtn}>
+        ⬛
+      </button>
+      <button type="button" onClick={() => alignSelectedImage("right")} style={imgToolbarBtn}>
+        ➡
+      </button>
+
+      <span style={{ width: 1, height: 18, background: "rgba(255,255,255,0.2)", margin: "0 4px" }} />
+
+      <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginRight: 2 }}>
+        Size
+      </span>
+      <button type="button" onClick={() => resizeSelectedImage(25)} style={imgToolbarBtn}>S</button>
+      <button type="button" onClick={() => resizeSelectedImage(50)} style={imgToolbarBtn}>M</button>
+      <button type="button" onClick={() => resizeSelectedImage(75)} style={imgToolbarBtn}>L</button>
+      <button type="button" onClick={() => resizeSelectedImage(100)} style={imgToolbarBtn}>XL</button>
+
+      <span style={{ width: 1, height: 18, background: "rgba(255,255,255,0.2)", margin: "0 4px" }} />
+
+      <button
+        type="button"
+        onClick={deselectImage}
+        style={{ ...imgToolbarBtn, color: "#f87171" }}
+        title="Deselect"
+      >
+        ✕
+      </button>
+    </div>
+  )}
+</div>
                     </Field>
                   </div>
 
@@ -379,10 +598,14 @@ export default function AdminDashboard() {
                           alignItems: "center", justifyContent: "center",
                           gap: 6, padding: imageData ? 0 : 24, textAlign: "center",
                           transition: "border-color 0.15s",
+                          opacity: uploadingCover ? 0.6 : 1,
+                          pointerEvents: uploadingCover ? "none" : "auto",
                         }}
                       >
-                        {imageData ? (
-                          <img src={imageData} alt="Cover preview" style={{ width: "100%", height: 160, objectFit: "cover", display: "block" }} />
+                        {uploadingCover ? (
+                          <div style={{ fontSize: 13, color: "#6b7280" }}>Uploading...</div>
+                        ) : imageData ? (
+             <img src={imageData} alt="Cover preview" style={{ width: "100%", height: 160, objectFit: "cover", display: "block" }} />
                         ) : (
                           <>
                             <span style={{ fontSize: 28, color: "#9ca3af" }}>🖼</span>
@@ -391,7 +614,7 @@ export default function AdminDashboard() {
                           </>
                         )}
                       </div>
-                      {imageData && (
+                      {imageData && !uploadingCover && (
                         <button onClick={() => setImageData(null)} style={{ ...ghostBtn, fontSize: 12, marginTop: 6, width: "100%" }}>
                           Remove image
                         </button>
@@ -454,8 +677,12 @@ export default function AdminDashboard() {
                   <span style={{ fontSize: 12, color: "#9ca3af" }}>{charCount} characters</span>
                   <div style={{ display: "flex", gap: 10 }}>
                     <button onClick={clearForm} style={ghostBtn}>Clear</button>
-                    <button onClick={() => saveArticle("draft")} style={ghostBtn}>Save Draft</button>
-                    <button onClick={() => saveArticle("published")} style={primaryBtn}>Publish Now</button>
+                    <button onClick={() => saveArticle("draft")} disabled={saving} style={ghostBtn}>
+                      {saving ? "Saving..." : "Save Draft"}
+                    </button>
+                    <button onClick={() => saveArticle("published")} disabled={saving} style={primaryBtn}>
+                      {saving ? "Publishing..." : "Publish Now"}
+                    </button>
                   </div>
                 </div>
               </div>
@@ -478,7 +705,11 @@ export default function AdminDashboard() {
                   ))}
                 </div>
 
-                {articles.length === 0 ? (
+                {loadingArticles ? (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 80, color: "#9ca3af" }}>
+                    Loading articles...
+                  </div>
+                ) : articles.length === 0 ? (
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, padding: 80, color: "#9ca3af", textAlign: "center" }}>
                     <span style={{ fontSize: 40 }}>📰</span>
                     <p style={{ fontSize: 14 }}>No articles yet. Create your first one!</p>
@@ -509,7 +740,7 @@ export default function AdminDashboard() {
                         </div>
                         <div style={{ display: "flex", gap: 4, padding: "8px 12px 10px", borderTop: "0.5px solid #e5e7eb" }}>
                           <button onClick={() => editArticle(a)} style={{ ...cardBtn }}>✏ Edit</button>
-                          <button onClick={() => deleteArticle(a.id)} style={{ ...cardBtn, color: "#b91c1c" }}>🗑 Delete</button>
+                        <button onClick={() => deleteArticle(a.id, a.title)} style={{ ...cardBtn, color: "#b91c1c" }}>🗑 Delete</button>  <button onClick={() => deleteArticle(a.id)} style={{ ...cardBtn, color: "#b91c1c" }}>🗑 Delete</button>
                         </div>
                       </div>
                     ))}
@@ -589,4 +820,18 @@ const formatBtn: React.CSSProperties = {
   borderRadius: 6, cursor: "pointer",
   background: "#fff", border: "0.5px solid #e5e7eb", color: "#374151",
   display: "inline-flex", alignItems: "center", justifyContent: "center",
+};
+const imgToolbarBtn: React.CSSProperties = {
+  minWidth: 26,
+  height: 26,
+  fontSize: 11,
+  fontWeight: 700,
+  borderRadius: 6,
+  cursor: "pointer",
+  background: "rgba(255,255,255,0.1)",
+  border: "none",
+  color: "#fff",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
 };

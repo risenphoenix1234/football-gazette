@@ -1,6 +1,7 @@
 // app/layout.tsx
 import type { Metadata } from "next";
 import "../styles/globals.css";
+import SessionProviderWrapper from "@/components/providers/SessionProviderWrapper";
 
 export const metadata: Metadata = {
   title: "Football Gazette",
@@ -15,7 +16,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="overflow-x-hidden">
       <body className="bg-slate-950 text-white overflow-x-hidden">
-        {children}
+       <SessionProviderWrapper>{children}</SessionProviderWrapper>
       </body>
     </html>
   );

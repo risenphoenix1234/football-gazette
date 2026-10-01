@@ -33,8 +33,8 @@ export default function Footer() {
             </h3>
 
             <ul className="space-y-3 text-[16px] text-black sm:space-y-5 sm:text-[18px]">
-              <li>Skysport</li>
-              <li>SportyBet</li>
+              {/* <li>Skysport</li>
+              <li>SportyBet</li> */}
               <li>Kings Bet</li>
               <li>Sobi FM</li>
             </ul>
@@ -67,14 +67,24 @@ export default function Footer() {
             </div>
 
             <div className="space-y-1 text-[16px] leading-tight text-[#666] sm:text-[18px]">
-              <p>Copywrite FOOTBALL GAZETTE</p>
+              <p>
+                Copywrite{" "}
+                <Link
+                  href="/admin/login"
+                  className="text-inherit no-underline hover:text-inherit"
+                  aria-label="Admin"
+                >
+                  FOOTBALL
+                </Link>{" "}
+                GAZETTE
+              </p>
+
               
-                <a href="mailto:Footballgazette23@gmail.com"
+               <a   href="mailto:Footballgazette23@gmail.com"
                 className="block hover:text-purple-700"
               >
                 Footballgazette23@gmail.com
               </a>
-           
             </div>
           </div>
         </div>

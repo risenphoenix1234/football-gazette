@@ -1,17 +1,25 @@
 const NEWSDATA_BASE_URL = "https://newsdata.io/api/1/news";
+const BACKEND = process.env.FPL_BACKEND_URL;
 
 export type NewsArticle = {
   id: string;
   category: string;
   title: string;
   author: string;
-  source: string;
+  source: string; 
   image: string;
   avatar: string | null;
   description: string;
   content: string;
   url: string;
   publishedAt: string;
+};
+
+// Extra detail-page-only fields, layered on top of NewsArticle.
+export type ArticleDetail = NewsArticle & {
+  isOwn: boolean;
+  bodyHtml?: string; // rich HTML body, only present for our own articles
+  tags?: string[];
 };
 
 function encodeId(url: string) {
@@ -23,25 +31,23 @@ export function decodeId(id: string) {
 }
 
 const FALLBACK_IMAGES = [
-  "https://images.unsplash.com/photo-1517466787929-bc90951d0974?auto=format&fit=crop&w=1200&q=80", // stadium
-  "https://images.unsplash.com/photo-1522778119026-d647f0596c20?auto=format&fit=crop&w=1200&q=80", // pitch
-  "https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?auto=format&fit=crop&w=1200&q=80", // ball on grass
-  "https://images.unsplash.com/photo-1489944440615-453fc2b6a9a9?auto=format&fit=crop&w=1200&q=80", // action shot
-  "https://images.unsplash.com/photo-1553778263-73a83bab9b0c?auto=format&fit=crop&w=1200&q=80", // players
-  "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=1200&q=80", // crowd/stadium
-  "https://images.unsplash.com/photo-1543326727-cf6c39e8f84c?auto=format&fit=crop&w=1200&q=80", // goal net
-  "https://images.unsplash.com/photo-1522069169874-c58ec4b76be5?auto=format&fit=crop&w=1200&q=80", // dribbling
-  "https://images.unsplash.com/photo-1524015368236-b3c9c775a4c0?auto=format&fit=crop&w=1200&q=80", // training
-  "https://images.unsplash.com/photo-1600679472233-57ec37c85d0d?auto=format&fit=crop&w=1200&q=80", // floodlights
+  "https://images.unsplash.com/photo-1517466787929-bc90951d0974?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1522778119026-d647f0596c20?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1489944440615-453fc2b6a9a9?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1553778263-73a83bab9b0c?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1543326727-cf6c39e8f84c?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1522069169874-c58ec4b76be5?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1524015368236-b3c9c775a4c0?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1600679472233-57ec37c85d0d?auto=format&fit=crop&w=1200&q=80",
 ];
 
 function getFallbackImage(seed: string): string {
-  // Deterministic pick based on the article URL so the same article
-  // always gets the same fallback image (avoids flicker between requests).
   let hash = 0;
   for (let i = 0; i < seed.length; i++) {
     hash = (hash << 5) - hash + seed.charCodeAt(i);
-    hash |= 0; // keep it a 32-bit int
+    hash |= 0;
   }
   const index = Math.abs(hash) % FALLBACK_IMAGES.length;
   return FALLBACK_IMAGES[index];
@@ -93,4 +99,117 @@ export async function fetchFootballNewsById(id: string): Promise<NewsArticle | n
   const targetUrl = decodeId(id);
   const articles = await fetchFootballNews();
   return articles.find((a) => a.url === targetUrl) ?? null;
+}
+
+// --- Our own articles (from the Express/SQLite backend) ---
+
+type OwnArticle = {
+  id: number;
+  title: string;
+  category: string;
+  author: string;
+  excerpt: string;
+  body: string;
+  image: string | null;
+  status: "draft" | "published";
+  tags: string[];
+  date: string;
+};
+
+// Used by the homepage news feed — mapped into the same NewsArticle shape
+// everything else already expects. `url` points at our own internal
+// detail route rather than an external site.
+export async function fetchOwnPublishedArticles(): Promise<NewsArticle[]> {
+  if (!BACKEND) return [];
+
+  try {
+    const res = await fetch(`${BACKEND}/api/articles?status=published`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return [];
+
+    const articles: OwnArticle[] = await res.json();
+
+    return articles.map((a): NewsArticle => ({
+      id: `own-${a.id}`,
+      category: a.category || "Football Gazette",
+      title: a.title,
+      author: a.author,
+      source: "Football Gazette",
+      // `a.image` is already an absolute URL (set at upload time in the
+      // admin dashboard) — no need to prefix with BACKEND here anymore.
+      image: a.image || getFallbackImage(`own-${a.id}`),
+      avatar: null,
+      description: a.excerpt,
+      content: "",
+      url: `/news/own-${a.id}`,
+      publishedAt: a.date,
+    }));
+  } catch (err) {
+    console.error("Failed to fetch own articles:", err);
+    return [];
+  }
+}
+
+async function fetchOwnArticleById(numericId: string): Promise<ArticleDetail | null> {
+  if (!BACKEND) return null;
+
+  try {
+    const res = await fetch(`${BACKEND}/api/articles/${numericId}`, { cache: "no-store" });
+    if (!res.ok) return null;
+
+    const a: OwnArticle = await res.json();
+    if (a.status !== "published") return null; // don't leak drafts via a guessed URL
+
+    return {
+      id: `own-${a.id}`,
+      category: a.category || "Football Gazette",
+      title: a.title,
+      author: a.author,
+      source: "Football Gazette",
+      image: a.image || getFallbackImage(`own-${a.id}`),
+      avatar: null,
+      description: a.excerpt,
+      content: "",
+      url: `/news/own-${a.id}`,
+      publishedAt: a.date, // already a formatted display string, not ISO
+      isOwn: true,
+      bodyHtml: a.body,
+      tags: a.tags,
+    };
+  } catch (err) {
+    console.error("Failed to fetch own article by id:", err);
+    return null;
+  }
+}
+
+// Single entry point the detail page calls — figures out whether the slug
+// refers to one of our own articles or an external one, and fetches
+// accordingly.
+export async function getArticleDetail(id: string): Promise<ArticleDetail | null> {
+  if (id.startsWith("own-")) {
+    const numericId = id.replace("own-", "");
+    return fetchOwnArticleById(numericId);
+  }
+
+  const article = await fetchFootballNewsById(id);
+  if (!article) return null;
+  return { ...article, isOwn: false };
+}
+
+// Returns up to `limit` other articles (mixing our own + external), excluding
+// the one currently being viewed. Used for a "More News" section at the
+// bottom of the article detail page.
+export async function getMoreNews(excludeId: string, limit = 4): Promise<NewsArticle[]> {
+  const [own, external] = await Promise.all([
+    fetchOwnPublishedArticles(),
+    fetchFootballNews().catch(() => []),
+  ]);
+
+  const combined = [...own, ...external].filter((a) => a.id !== excludeId);
+
+  // Simple shuffle so the same 4 don't show every time
+  const shuffled = [...combined].sort(() => Math.random() - 0.5);
+
+  return shuffled.slice(0, limit);
 }
