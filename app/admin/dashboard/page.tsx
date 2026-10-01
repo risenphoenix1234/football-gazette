@@ -739,8 +739,7 @@ async function deleteArticle(id: number, title: string) {
                           </div>
                         </div>
                         <div style={{ display: "flex", gap: 4, padding: "8px 12px 10px", borderTop: "0.5px solid #e5e7eb" }}>
-                          <button onClick={() => editArticle(a)} style={{ ...cardBtn }}>✏ Edit</button>
-                        <button onClick={() => deleteArticle(a.id, a.title)} style={{ ...cardBtn, color: "#b91c1c" }}>🗑 Delete</button>  <button onClick={() => deleteArticle(a.id)} style={{ ...cardBtn, color: "#b91c1c" }}>🗑 Delete</button>
+                         <button onClick={() => deleteArticle(a.id, a.title)} style={{ ...cardBtn, color: "#b91c1c" }}>🗑 Delete</button>
                         </div>
                       </div>
                     ))}
