@@ -12,20 +12,20 @@ const PUNDITS = [
   {
     id: 2,
     name: "Tunmise A.",
-    title: "Tunmise A. Says: Manchester united will win the league",
+    title: "Tunmise A. Says: Manchester united will winn the league",
     img: "/Dios-ayudame.jpg",
   },
   {
     id: 3,
     name: "Olusola Victor",
     title: "Olusola Victor Says: Arsenal will choke again before the season ends",
-    img: "/Olusola-Victor.jpg",
+    img: "/Olusola-Victor.jpeg",
   },
   {
     id: 4,
     name: "Toheeb Adesola",
     title: "Toheeb Adesola Says: Messi is still better than Ronaldo, no debate",
-    img: "/Toheeb-Adesola.jpg",
+    img: "/Toheeb-Adesola.jpeg",
   },
   // {
   //   id: 5,
