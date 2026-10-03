@@ -1,6 +1,7 @@
 // app/admin/dashboard/page.tsx
 "use client";
 import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
 import { signOut } from "next-auth/react";
 
 type Article = {
@@ -456,14 +457,20 @@ export default function AdminDashboard() {
             : {}),
         }}>
           <div style={{ padding: "20px 20px 16px", borderBottom: "0.5px solid rgba(255,255,255,0.1)", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-            <div>
+            {/* BRAND — click to go back to home */}
+            <Link
+              href="/"
+              title="Go to home"
+              onClick={() => setSidebarOpen(false)}
+              style={{ textDecoration: "none", display: "block", cursor: "pointer" }}
+            >
               <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 18, fontWeight: 800, color: "#fff", letterSpacing: "0.12em", textTransform: "uppercase", lineHeight: 1.1 }}>
                 Football<br />Gazette
               </div>
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", letterSpacing: "0.08em", textTransform: "uppercase", marginTop: 3 }}>
                 Admin Panel
               </div>
-            </div>
+            </Link>
             {isMobile && (
               <button
                 onClick={() => setSidebarOpen(false)}
