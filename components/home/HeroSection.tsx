@@ -103,9 +103,9 @@ export default function HeroSection() {
             <p className="text-purple-300 text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.25em] sm:tracking-[0.35em] mb-2 sm:mb-3">
               {current.category}
             </p>
-            <h1 className="text-white font-extrabold text-[1.6rem] leading-[1.2] sm:text-[2rem] md:text-[2.6rem] sm:leading-[1.1] mb-5 sm:mb-7 max-w-[560px]">
-              {current.title}
-            </h1>
+          <h1 className="text-white font-extrabold text-[1.6rem] leading-[1.2] sm:text-[2rem] md:text-[2.6rem] sm:leading-[1.1] mb-5 sm:mb-7 max-w-[560px] line-clamp-5">
+  {current.title}
+</h1>
             {current.url ? (
               
                <a  href={current.url}

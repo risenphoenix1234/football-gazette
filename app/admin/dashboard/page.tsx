@@ -37,7 +37,7 @@ const ALL_TAGS = [
   "Exclusive",
 ];
 
-// CSS for contentEditable placeholder
+// CSS for contentEditable placeholder + editor content styling
 const editorStyles = `
   [contenteditable][data-placeholder]:empty:before {
     content: attr(data-placeholder);
@@ -46,11 +46,40 @@ const editorStyles = `
   }
   [contenteditable] {
     outline: none;
+    word-break: break-word;
+    overflow-wrap: anywhere;
   }
+  [contenteditable] h2 { font-family: 'Barlow Condensed', sans-serif; font-size: 24px; font-weight: 700; margin: 14px 0 6px; line-height: 1.15; }
+  [contenteditable] h3 { font-family: 'Barlow Condensed', sans-serif; font-size: 19px; font-weight: 700; margin: 12px 0 4px; line-height: 1.2; }
+  [contenteditable] blockquote { border-left: 3px solid #a78bfa; margin: 12px 0; padding: 4px 14px; color: #4b5563; font-style: italic; background: #f5f3ff; border-radius: 0 8px 8px 0; }
+  [contenteditable] ul, [contenteditable] ol { padding-left: 22px; margin: 8px 0; }
+  [contenteditable] a { color: #7c3aed; text-decoration: underline; }
+  [contenteditable] img { max-width: 100%; height: auto; cursor: pointer; }
+  .fg-scroll-x { scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .fg-scroll-x::-webkit-scrollbar { display: none; }
+  * { box-sizing: border-box; }
 `;
+
+// ---- tiny media-query hook (client only) ----
+function useMediaQuery(query: string) {
+  const [matches, setMatches] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    setMatches(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setMatches(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, [query]);
+  return matches;
+}
 
 export default function AdminDashboard() {
   const IMAGE_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
+
+  const isMobile = useMediaQuery("(max-width: 767px)"); // sidebar becomes a drawer
+  const isNarrow = useMediaQuery("(max-width: 1023px)"); // form columns stack
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   const [panel, setPanel] = useState<"create" | "articles">("create");
   const [articles, setArticles] = useState<Article[]>([]);
   const [loadingArticles, setLoadingArticles] = useState(true);
@@ -72,69 +101,76 @@ export default function AdminDashboard() {
   const [charCount, setCharCount] = useState(0);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [selectedImage, setSelectedImage] = useState<HTMLImageElement | null>(null);
-const [toolbarPos, setToolbarPos] = useState<{ top: number; left: number } | null>(null);
+  const [toolbarPos, setToolbarPos] = useState<{ top: number; left: number } | null>(null);
+
+  const pad = isMobile ? 14 : 24;
 
   function showToast(msg: string, ok = true) {
     setToast({ msg, ok });
     setTimeout(() => setToast(null), 2800);
   }
 
+  // close drawer when leaving mobile
+  useEffect(() => {
+    if (!isMobile) setSidebarOpen(false);
+  }, [isMobile]);
+
   function selectImageForEditing(img: HTMLImageElement) {
-  setSelectedImage(img);
-  const editorRect = bodyRef.current?.getBoundingClientRect();
-  const imgRect = img.getBoundingClientRect();
-  if (editorRect) {
-    setToolbarPos({
-      top: imgRect.top - editorRect.top - 44,
-      left: imgRect.left - editorRect.left,
-    });
-  }
-}
-
-function deselectImage() {
-  setSelectedImage(null);
-  setToolbarPos(null);
-}
-
-function handleBodyClick(e: React.MouseEvent<HTMLDivElement>) {
-  const target = e.target as HTMLElement;
-  if (target.tagName === "IMG") {
-    selectImageForEditing(target as HTMLImageElement);
-  } else {
-    deselectImage();
-  }
-}
-
-function alignSelectedImage(align: "left" | "center" | "right") {
-  if (!selectedImage) return;
-
-  if (align === "left") {
-    selectedImage.style.float = "left";
-    selectedImage.style.display = "block";
-    selectedImage.style.margin = "4px 16px 8px 0";
-  } else if (align === "right") {
-    selectedImage.style.float = "right";
-    selectedImage.style.display = "block";
-    selectedImage.style.margin = "4px 0 8px 16px";
-  } else {
-    selectedImage.style.float = "none";
-    selectedImage.style.display = "block";
-    selectedImage.style.margin = "12px auto";
+    setSelectedImage(img);
+    const editorRect = bodyRef.current?.getBoundingClientRect();
+    const imgRect = img.getBoundingClientRect();
+    if (editorRect) {
+      setToolbarPos({
+        top: imgRect.top - editorRect.top - 44,
+        left: Math.max(0, imgRect.left - editorRect.left),
+      });
+    }
   }
 
-  updateCharCount();
-  // Reposition the toolbar since the image likely moved
-  selectImageForEditing(selectedImage);
-}
+  function deselectImage() {
+    setSelectedImage(null);
+    setToolbarPos(null);
+  }
 
-function resizeSelectedImage(percent: number) {
-  if (!selectedImage) return;
-  selectedImage.style.width = `${percent}%`;
-  selectedImage.style.height = "auto";
-  selectedImage.style.maxWidth = "100%";
-  updateCharCount();
-  selectImageForEditing(selectedImage);
-}
+  function handleBodyClick(e: React.MouseEvent<HTMLDivElement>) {
+    const target = e.target as HTMLElement;
+    if (target.tagName === "IMG") {
+      selectImageForEditing(target as HTMLImageElement);
+    } else {
+      deselectImage();
+    }
+  }
+
+  function alignSelectedImage(align: "left" | "center" | "right") {
+    if (!selectedImage) return;
+
+    if (align === "left") {
+      selectedImage.style.float = "left";
+      selectedImage.style.display = "block";
+      selectedImage.style.margin = "4px 16px 8px 0";
+    } else if (align === "right") {
+      selectedImage.style.float = "right";
+      selectedImage.style.display = "block";
+      selectedImage.style.margin = "4px 0 8px 16px";
+    } else {
+      selectedImage.style.float = "none";
+      selectedImage.style.display = "block";
+      selectedImage.style.margin = "12px auto";
+    }
+
+    updateCharCount();
+    // Reposition the toolbar since the image likely moved
+    selectImageForEditing(selectedImage);
+  }
+
+  function resizeSelectedImage(percent: number) {
+    if (!selectedImage) return;
+    selectedImage.style.width = `${percent}%`;
+    selectedImage.style.height = "auto";
+    selectedImage.style.maxWidth = "100%";
+    updateCharCount();
+    selectImageForEditing(selectedImage);
+  }
 
   // ---- LOAD ARTICLES ON MOUNT ----
   useEffect(() => {
@@ -167,6 +203,7 @@ function resizeSelectedImage(percent: number) {
     setSelectedTags([]);
     setStatus("draft");
     setEditingId(null);
+    deselectImage();
   }
 
   function getFormData(): Omit<Article, "id" | "date"> {
@@ -243,42 +280,43 @@ function resizeSelectedImage(percent: number) {
     }
   }
 
-async function uploadImage(file: File): Promise<string> {
-  const formData = new FormData();
-  formData.append("image", file);
+  async function uploadImage(file: File): Promise<string> {
+    const formData = new FormData();
+    formData.append("image", file);
 
-  const res = await fetch("/api/admin/upload-image", {
-    method: "POST",
-    body: formData,
-  });
+    const res = await fetch("/api/admin/upload-image", {
+      method: "POST",
+      body: formData,
+    });
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || "Image upload failed");
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || "Image upload failed");
+    }
+
+    const data: { url: string } = await res.json();
+    return `${IMAGE_BASE}${data.url}`; // now absolute, e.g. http://localhost:4000/uploads/xyz.jpg
   }
-
-  const data: { url: string } = await res.json();
-  return `${IMAGE_BASE}${data.url}`; // now absolute, e.g. http://localhost:4000/uploads/xyz.jpg
-}
 
   // ---- DELETE ----
-async function deleteArticle(id: number, title: string) {
-  const confirmed = window.confirm(`Delete "${title}"? This cannot be undone.`);
-  if (!confirmed) return;
+  async function deleteArticle(id: number, title: string) {
+    const confirmed = window.confirm(`Delete "${title}"? This cannot be undone.`);
+    if (!confirmed) return;
 
-  const prev = articles;
-  setArticles((cur) => cur.filter((a) => a.id !== id)); // optimistic
+    const prev = articles;
+    setArticles((cur) => cur.filter((a) => a.id !== id)); // optimistic
 
-  try {
-    const res = await fetch(`/api/admin/articles/${id}`, { method: "DELETE" });
-    if (!res.ok && res.status !== 204) throw new Error("Failed to delete article");
-    showToast("Article deleted");
-  } catch (err) {
-    console.error(err);
-    setArticles(prev); // roll back
-    showToast("Couldn't delete article", false);
+    try {
+      const res = await fetch(`/api/admin/articles/${id}`, { method: "DELETE" });
+      if (!res.ok && res.status !== 204) throw new Error("Failed to delete article");
+      showToast("Article deleted");
+    } catch (err) {
+      console.error(err);
+      setArticles(prev); // roll back
+      showToast("Couldn't delete article", false);
+    }
   }
-}
+
   function editArticle(a: Article) {
     setPanel("create");
     setTimeout(() => {
@@ -371,23 +409,70 @@ async function deleteArticle(id: number, title: string) {
   const published = articles.filter(a => a.status === "published").length;
   const drafts = articles.filter(a => a.status === "draft").length;
 
+  const fmtBtn: React.CSSProperties = {
+    ...formatBtn,
+    minWidth: isMobile ? 36 : 28,
+    height: isMobile ? 36 : 28,
+    fontSize: isMobile ? 13 : 12,
+    flexShrink: 0,
+  };
+
+  const imgBtn: React.CSSProperties = {
+    ...imgToolbarBtn,
+    minWidth: isMobile ? 32 : 26,
+    height: isMobile ? 32 : 26,
+  };
+
+  function goTo(p: "create" | "articles") {
+    setPanel(p);
+    setSidebarOpen(false);
+  }
+
   return (
     <>
       <style>{editorStyles}</style>
-      <div style={{ display: "flex", height: "100vh", fontFamily: "'DM Sans', sans-serif", background: "#f5f3ff" }}>
+      <div style={{ display: "flex", height: "100dvh", fontFamily: "'DM Sans', sans-serif", background: "#f5f3ff", overflow: "hidden" }}>
 
-        {/* SIDEBAR */}
+        {/* MOBILE OVERLAY */}
+        {isMobile && sidebarOpen && (
+          <div
+            onClick={() => setSidebarOpen(false)}
+            style={{ position: "fixed", inset: 0, background: "rgba(17,10,50,0.55)", zIndex: 40 }}
+          />
+        )}
+
+        {/* SIDEBAR (drawer on mobile) */}
         <aside style={{
-          width: 220, background: "#2d1a6e", display: "flex",
+          width: isMobile ? 260 : isNarrow ? 190 : 220,
+          background: "#2d1a6e", display: "flex",
           flexDirection: "column", flexShrink: 0,
+          ...(isMobile
+            ? {
+                position: "fixed", top: 0, bottom: 0, left: 0, zIndex: 50,
+                transform: sidebarOpen ? "translateX(0)" : "translateX(-100%)",
+                transition: "transform 0.25s ease",
+                boxShadow: sidebarOpen ? "8px 0 30px rgba(0,0,0,0.35)" : "none",
+              }
+            : {}),
         }}>
-          <div style={{ padding: "20px 20px 16px", borderBottom: "0.5px solid rgba(255,255,255,0.1)" }}>
-            <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 18, fontWeight: 800, color: "#fff", letterSpacing: "0.12em", textTransform: "uppercase", lineHeight: 1.1 }}>
-              Football<br />Gazette
+          <div style={{ padding: "20px 20px 16px", borderBottom: "0.5px solid rgba(255,255,255,0.1)", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            <div>
+              <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 18, fontWeight: 800, color: "#fff", letterSpacing: "0.12em", textTransform: "uppercase", lineHeight: 1.1 }}>
+                Football<br />Gazette
+              </div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", letterSpacing: "0.08em", textTransform: "uppercase", marginTop: 3 }}>
+                Admin Panel
+              </div>
             </div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", letterSpacing: "0.08em", textTransform: "uppercase", marginTop: 3 }}>
-              Admin Panel
-            </div>
+            {isMobile && (
+              <button
+                onClick={() => setSidebarOpen(false)}
+                aria-label="Close menu"
+                style={{ background: "rgba(255,255,255,0.1)", border: "none", color: "#fff", width: 32, height: 32, borderRadius: 8, cursor: "pointer", fontSize: 14 }}
+              >
+                ✕
+              </button>
+            )}
           </div>
 
           <nav style={{ padding: "12px 0", flex: 1 }}>
@@ -397,10 +482,10 @@ async function deleteArticle(id: number, title: string) {
             ].map(item => (
               <div
                 key={item.key}
-                onClick={() => setPanel(item.key as "create" | "articles")}
+                onClick={() => goTo(item.key as "create" | "articles")}
                 style={{
                   display: "flex", alignItems: "center", gap: 10,
-                  padding: "10px 20px", fontSize: 13, fontWeight: 500, cursor: "pointer",
+                  padding: isMobile ? "14px 20px" : "10px 20px", fontSize: 13, fontWeight: 500, cursor: "pointer",
                   color: panel === item.key ? "#fff" : "rgba(255,255,255,0.55)",
                   background: panel === item.key ? "rgba(255,255,255,0.1)" : "transparent",
                   borderLeft: panel === item.key ? "3px solid #a78bfa" : "3px solid transparent",
@@ -419,43 +504,60 @@ async function deleteArticle(id: number, title: string) {
               <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Super Editor</span>
             </div>
           </div>
-        
-        <button
-  onClick={() => signOut({ callbackUrl: "/admin/login" })}
-  style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", background: "none", border: "none", cursor: "pointer", marginTop: 4 }}
->
-  Sign out
-</button>
-        
+
+          <button
+            onClick={() => signOut({ callbackUrl: "/admin/login" })}
+            style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", background: "none", border: "none", cursor: "pointer", margin: "0 0 16px", padding: "4px 20px", textAlign: "left" }}
+          >
+            Sign out
+          </button>
         </aside>
 
         {/* MAIN */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
 
           {/* TOPBAR */}
           <div style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            padding: "16px 24px", borderBottom: "0.5px solid #e5e7eb",
-            background: "#fff",
+            display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
+            padding: isMobile ? "10px 14px" : "16px 24px", borderBottom: "0.5px solid #e5e7eb",
+            background: "#fff", flexShrink: 0,
           }}>
-            <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 20, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase" }}>
-              {panel === "create" ? (editingId ? "Edit Article" : "Create Article") : "All Articles"}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+              {isMobile && (
+                <button
+                  onClick={() => setSidebarOpen(true)}
+                  aria-label="Open menu"
+                  style={{ width: 38, height: 38, borderRadius: 8, border: "0.5px solid #d1d5db", background: "#fff", cursor: "pointer", fontSize: 18, flexShrink: 0 }}
+                >
+                  ☰
+                </button>
+              )}
+              <div style={{
+                fontFamily: "'Barlow Condensed', sans-serif", fontSize: isMobile ? 17 : 20, fontWeight: 700,
+                letterSpacing: "0.05em", textTransform: "uppercase",
+                whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+              }}>
+                {panel === "create" ? (editingId ? "Edit Article" : "Create Article") : "All Articles"}
+              </div>
             </div>
-            <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setPanel("articles")} style={ghostBtn}>All Articles</button>
+            <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>
+              {!isMobile && <button onClick={() => setPanel("articles")} style={ghostBtn}>All Articles</button>}
               <button onClick={() => saveArticle("published")} disabled={saving} style={primaryBtn}>
                 {saving ? "Publishing..." : "Publish Now"}
               </button>
             </div>
           </div>
 
-          {/* CONTENT */}
-          <div style={{ flex: 1, overflow: "auto" }}>
+          {/* CONTENT (this is the scroll container the sticky toolbar sticks inside) */}
+          <div style={{ flex: 1, overflow: "auto", WebkitOverflowScrolling: "touch" }}>
 
             {/* CREATE PANEL */}
             {panel === "create" && (
-              <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-                <div style={{ display: "flex", gap: 20, padding: 24, flex: 1 }}>
+              <div style={{ display: "flex", flexDirection: "column", minHeight: "100%" }}>
+                <div style={{
+                  display: "flex", flexDirection: isNarrow ? "column" : "row",
+                  gap: isMobile ? 16 : 20, padding: pad, flex: 1,
+                }}>
 
                   {/* LEFT */}
                   <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
@@ -464,10 +566,10 @@ async function deleteArticle(id: number, title: string) {
                         ref={titleRef}
                         rows={2}
                         placeholder="Enter a compelling headline..."
-                        style={{ ...inputBase, fontFamily: "'Barlow Condensed', sans-serif", fontSize: 20, fontWeight: 700, resize: "vertical" }}
+                        style={{ ...inputBase, fontFamily: "'Barlow Condensed', sans-serif", fontSize: isMobile ? 18 : 20, fontWeight: 700, resize: "vertical" }}
                       />
                     </Field>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
                       <Field label="Category">
                         <select ref={categoryRef} style={inputBase}>
                           <option value="">Select category</option>
@@ -484,19 +586,30 @@ async function deleteArticle(id: number, title: string) {
 
                     {/* WYSIWYG EDITOR */}
                     <Field label="Full Article Body">
-                      <div style={{
-                        display: "flex", gap: 4, padding: "6px 8px",
-                        border: "0.5px solid #d1d5db", borderBottom: "none",
-                        borderRadius: "8px 8px 0 0", background: "#f9fafb",
-                        flexWrap: "wrap",
-                      }}>
+                      {/* STICKY TOOLBAR — always stays on top while scrolling */}
+                      <div
+                        className="fg-scroll-x"
+                        style={{
+                          position: "sticky",
+                          top: 0,
+                          zIndex: 20,
+                          display: "flex", gap: 4, padding: "6px 8px",
+                          border: "0.5px solid #d1d5db", borderBottom: "0.5px solid #e5e7eb",
+                          borderRadius: "8px 8px 0 0", background: "#f9fafb",
+                          boxShadow: "0 3px 10px rgba(45,26,110,0.08)",
+                          flexWrap: isMobile ? "nowrap" : "wrap",
+                          overflowX: isMobile ? "auto" : "visible",
+                        }}
+                      >
                         {FORMAT_BUTTONS.map(btn => (
                           <button
                             key={btn.title}
                             type="button"
                             title={btn.title}
+                            // keep the editor selection when clicking toolbar buttons
+                            onMouseDown={(e) => e.preventDefault()}
                             onClick={btn.action}
-                            style={formatBtn}
+                            style={fmtBtn}
                           >
                             {btn.label}
                           </button>
@@ -510,82 +623,82 @@ async function deleteArticle(id: number, title: string) {
                         style={{ display: "none" }}
                         onChange={handleBodyImageUpload}
                       />
-<div style={{ position: "relative" }}>
-  <div
-    ref={bodyRef}
-    contentEditable
-    suppressContentEditableWarning
-    onInput={updateCharCount}
-    onClick={handleBodyClick}
-    data-placeholder="Write the full story here..."
-    style={{
-      ...inputBase,
-      borderRadius: "0 0 8px 8px",
-      minHeight: 220,
-      overflowY: "auto",
-      lineHeight: 1.6,
-      background: "#fff",
-      fontFamily: "'DM Sans', sans-serif",
-    }}
-  />
+                      <div style={{ position: "relative" }}>
+                        <div
+                          ref={bodyRef}
+                          contentEditable
+                          suppressContentEditableWarning
+                          onInput={updateCharCount}
+                          onClick={handleBodyClick}
+                          data-placeholder="Write the full story here..."
+                          style={{
+                            ...inputBase,
+                            borderRadius: "0 0 8px 8px",
+                            minHeight: isMobile ? 280 : 320,
+                            overflowY: "auto",
+                            lineHeight: 1.6,
+                            background: "#fff",
+                            fontFamily: "'DM Sans', sans-serif",
+                            fontSize: isMobile ? 16 : 14,
+                          }}
+                        />
 
-  {selectedImage && toolbarPos && (
-    <div
-      style={{
-        position: "absolute",
-        top: Math.max(toolbarPos.top, 0),
-        left: toolbarPos.left,
-        display: "flex",
-        alignItems: "center",
-        gap: 4,
-        background: "#1f2937",
-        borderRadius: 8,
-        padding: "6px 8px",
-        boxShadow: "0 4px 12px rgba(0,0,0,0.25)",
-        zIndex: 10,
-      }}
-    >
-      <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginRight: 2 }}>
-        Align
-      </span>
-      <button type="button" onClick={() => alignSelectedImage("left")} style={imgToolbarBtn}>
-        ⬅
-      </button>
-      <button type="button" onClick={() => alignSelectedImage("center")} style={imgToolbarBtn}>
-        ⬛
-      </button>
-      <button type="button" onClick={() => alignSelectedImage("right")} style={imgToolbarBtn}>
-        ➡
-      </button>
+                        {selectedImage && toolbarPos && (
+                          <div
+                            style={{
+                              position: "absolute",
+                              top: Math.max(toolbarPos.top, 0),
+                              left: toolbarPos.left,
+                              maxWidth: "100%",
+                              display: "flex",
+                              flexWrap: "wrap",
+                              alignItems: "center",
+                              gap: 4,
+                              background: "#1f2937",
+                              borderRadius: 8,
+                              padding: "6px 8px",
+                              boxShadow: "0 4px 12px rgba(0,0,0,0.25)",
+                              zIndex: 10,
+                            }}
+                          >
+                            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginRight: 2 }}>
+                              Align
+                            </span>
+                            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => alignSelectedImage("left")} style={imgBtn}>⬅</button>
+                            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => alignSelectedImage("center")} style={imgBtn}>⬛</button>
+                            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => alignSelectedImage("right")} style={imgBtn}>➡</button>
 
-      <span style={{ width: 1, height: 18, background: "rgba(255,255,255,0.2)", margin: "0 4px" }} />
+                            <span style={{ width: 1, height: 18, background: "rgba(255,255,255,0.2)", margin: "0 4px" }} />
 
-      <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginRight: 2 }}>
-        Size
-      </span>
-      <button type="button" onClick={() => resizeSelectedImage(25)} style={imgToolbarBtn}>S</button>
-      <button type="button" onClick={() => resizeSelectedImage(50)} style={imgToolbarBtn}>M</button>
-      <button type="button" onClick={() => resizeSelectedImage(75)} style={imgToolbarBtn}>L</button>
-      <button type="button" onClick={() => resizeSelectedImage(100)} style={imgToolbarBtn}>XL</button>
+                            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginRight: 2 }}>
+                              Size
+                            </span>
+                            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => resizeSelectedImage(25)} style={imgBtn}>S</button>
+                            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => resizeSelectedImage(50)} style={imgBtn}>M</button>
+                            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => resizeSelectedImage(75)} style={imgBtn}>L</button>
+                            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => resizeSelectedImage(100)} style={imgBtn}>XL</button>
 
-      <span style={{ width: 1, height: 18, background: "rgba(255,255,255,0.2)", margin: "0 4px" }} />
+                            <span style={{ width: 1, height: 18, background: "rgba(255,255,255,0.2)", margin: "0 4px" }} />
 
-      <button
-        type="button"
-        onClick={deselectImage}
-        style={{ ...imgToolbarBtn, color: "#f87171" }}
-        title="Deselect"
-      >
-        ✕
-      </button>
-    </div>
-  )}
-</div>
+                            <button
+                              type="button"
+                              onClick={deselectImage}
+                              style={{ ...imgBtn, color: "#f87171" }}
+                              title="Deselect"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </Field>
                   </div>
 
-                  {/* RIGHT */}
-                  <div style={{ width: 260, flexShrink: 0, display: "flex", flexDirection: "column", gap: 16 }}>
+                  {/* RIGHT (stacks under the form on tablet/mobile) */}
+                  <div style={{
+                    width: isNarrow ? "100%" : 260, flexShrink: 0,
+                    display: "flex", flexDirection: "column", gap: 16,
+                  }}>
                     <Field label="Cover Image">
                       <div
                         onClick={() => fileRef.current?.click()}
@@ -605,7 +718,7 @@ async function deleteArticle(id: number, title: string) {
                         {uploadingCover ? (
                           <div style={{ fontSize: 13, color: "#6b7280" }}>Uploading...</div>
                         ) : imageData ? (
-             <img src={imageData} alt="Cover preview" style={{ width: "100%", height: 160, objectFit: "cover", display: "block" }} />
+                          <img src={imageData} alt="Cover preview" style={{ width: "100%", height: isNarrow ? 200 : 160, objectFit: "cover", display: "block" }} />
                         ) : (
                           <>
                             <span style={{ fontSize: 28, color: "#9ca3af" }}>🖼</span>
@@ -615,7 +728,7 @@ async function deleteArticle(id: number, title: string) {
                         )}
                       </div>
                       {imageData && !uploadingCover && (
-                        <button onClick={() => setImageData(null)} style={{ ...ghostBtn, fontSize: 12, marginTop: 6, width: "100%" }}>
+                        <button onClick={() => setImageData(null)} style={{ ...ghostBtn, fontSize: 12, marginTop: 6, width: "100%", justifyContent: "center" }}>
                           Remove image
                         </button>
                       )}
@@ -630,7 +743,7 @@ async function deleteArticle(id: number, title: string) {
                             onClick={() => setStatus(s)}
                             style={{
                               flex: 1, textAlign: "center", fontSize: 12, fontWeight: 500,
-                              padding: "7px 4px", borderRadius: 8, cursor: "pointer",
+                              padding: isMobile ? "10px 4px" : "7px 4px", borderRadius: 8, cursor: "pointer",
                               border: "0.5px solid",
                               borderColor: status === s ? (s === "draft" ? "#fcd34d" : "#6ee7b7") : "#e5e7eb",
                               background: status === s ? (s === "draft" ? "#fef3c7" : "#d1fae5") : "#fff",
@@ -651,7 +764,7 @@ async function deleteArticle(id: number, title: string) {
                             key={tag}
                             onClick={() => setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])}
                             style={{
-                              fontSize: 11, fontWeight: 500, padding: "3px 10px",
+                              fontSize: 11, fontWeight: 500, padding: isMobile ? "6px 12px" : "3px 10px",
                               borderRadius: 99, cursor: "pointer",
                               border: "0.5px solid",
                               borderColor: selectedTags.includes(tag) ? "#c4b5fd" : "#e5e7eb",
@@ -668,14 +781,16 @@ async function deleteArticle(id: number, title: string) {
                   </div>
                 </div>
 
-                {/* FORM ACTIONS */}
+                {/* FORM ACTIONS (sticks to the bottom of the scroll area) */}
                 <div style={{
-                  padding: "14px 24px", borderTop: "0.5px solid #e5e7eb",
-                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  position: "sticky", bottom: 0, zIndex: 15,
+                  padding: isMobile ? "10px 14px" : "14px 24px", borderTop: "0.5px solid #e5e7eb",
+                  display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
+                  flexWrap: "wrap",
                   background: "#fff",
                 }}>
                   <span style={{ fontSize: 12, color: "#9ca3af" }}>{charCount} characters</span>
-                  <div style={{ display: "flex", gap: 10 }}>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", flex: isMobile ? 1 : "none", justifyContent: "flex-end" }}>
                     <button onClick={clearForm} style={ghostBtn}>Clear</button>
                     <button onClick={() => saveArticle("draft")} disabled={saving} style={ghostBtn}>
                       {saving ? "Saving..." : "Save Draft"}
@@ -698,7 +813,10 @@ async function deleteArticle(id: number, title: string) {
                     { label: "Published", value: published },
                     { label: "Drafts", value: drafts },
                   ].map(s => (
-                    <div key={s.label} style={{ padding: "12px 24px", borderRight: "0.5px solid #e5e7eb" }}>
+                    <div key={s.label} style={{
+                      padding: isMobile ? "12px 14px" : "12px 24px", borderRight: "0.5px solid #e5e7eb",
+                      flex: isMobile ? 1 : "none",
+                    }}>
                       <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 22, fontWeight: 700 }}>{s.value}</div>
                       <div style={{ fontSize: 11, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.08em" }}>{s.label}</div>
                     </div>
@@ -716,19 +834,23 @@ async function deleteArticle(id: number, title: string) {
                     <button onClick={() => setPanel("create")} style={primaryBtn}>+ Create Article</button>
                   </div>
                 ) : (
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 16, padding: 24 }}>
+                  <div style={{
+                    display: "grid",
+                    gridTemplateColumns: isMobile ? "repeat(auto-fill, minmax(150px, 1fr))" : "repeat(auto-fill, minmax(220px, 1fr))",
+                    gap: isMobile ? 12 : 16, padding: pad,
+                  }}>
                     {articles.map(a => (
-                      <div key={a.id} style={{ border: "0.5px solid #e5e7eb", borderRadius: 12, overflow: "hidden", background: "#fff", transition: "border-color 0.15s" }}>
+                      <div key={a.id} style={{ border: "0.5px solid #e5e7eb", borderRadius: 12, overflow: "hidden", background: "#fff", transition: "border-color 0.15s", minWidth: 0 }}>
                         {a.image
-                          ? <img src={a.image} alt={a.title} style={{ width: "100%", height: 130, objectFit: "cover", display: "block" }} />
-                          : <div style={{ width: "100%", height: 130, background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, color: "#d1d5db" }}>🖼</div>
+                          ? <img src={a.image} alt={a.title} style={{ width: "100%", height: isMobile ? 100 : 130, objectFit: "cover", display: "block" }} />
+                          : <div style={{ width: "100%", height: isMobile ? 100 : 130, background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, color: "#d1d5db" }}>🖼</div>
                         }
                         <div style={{ padding: 12 }}>
                           <div style={{ fontSize: 10, fontWeight: 500, letterSpacing: "0.1em", textTransform: "uppercase", color: "#7c3aed", marginBottom: 4 }}>{a.category || "Uncategorised"}</div>
                           <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 15, fontWeight: 700, lineHeight: 1.2, marginBottom: 8 }}>
                             {a.title.substring(0, 70)}{a.title.length > 70 ? "…" : ""}
                           </div>
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, flexWrap: "wrap" }}>
                             <span style={{
                               fontSize: 10, fontWeight: 500, padding: "2px 8px", borderRadius: 99,
                               background: a.status === "published" ? "#d1fae5" : "#fef3c7",
@@ -739,7 +861,7 @@ async function deleteArticle(id: number, title: string) {
                           </div>
                         </div>
                         <div style={{ display: "flex", gap: 4, padding: "8px 12px 10px", borderTop: "0.5px solid #e5e7eb" }}>
-                         <button onClick={() => deleteArticle(a.id, a.title)} style={{ ...cardBtn, color: "#b91c1c" }}>🗑 Delete</button>
+                          <button onClick={() => deleteArticle(a.id, a.title)} style={{ ...cardBtn, color: "#b91c1c", padding: isMobile ? "9px 5px" : "5px" }}>🗑 Delete</button>
                         </div>
                       </div>
                     ))}
@@ -753,7 +875,7 @@ async function deleteArticle(id: number, title: string) {
         {/* TOAST */}
         {toast && (
           <div style={{
-            position: "fixed", bottom: 20, right: 20,
+            position: "fixed", bottom: isMobile ? 76 : 20, right: isMobile ? 14 : 20, left: isMobile ? 14 : "auto",
             background: toast.ok ? "#059669" : "#dc2626",
             color: "#fff", padding: "10px 18px", borderRadius: 8,
             fontSize: 13, fontWeight: 500, display: "flex", alignItems: "center", gap: 8,
@@ -769,7 +891,7 @@ async function deleteArticle(id: number, title: string) {
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
       <label style={{ fontSize: 12, fontWeight: 500, color: "#6b7280", letterSpacing: "0.04em", textTransform: "uppercase" }}>{label}</label>
       {children}
     </div>
@@ -797,7 +919,7 @@ const primaryBtn: React.CSSProperties = {
   display: "inline-flex", alignItems: "center", gap: 6,
   padding: "8px 16px", fontSize: 13, fontWeight: 500,
   borderRadius: 8, cursor: "pointer", border: "none",
-  background: "#7c3aed", color: "#fff",
+  background: "#7c3aed", color: "#fff", whiteSpace: "nowrap",
 };
 
 const ghostBtn: React.CSSProperties = {
@@ -805,6 +927,7 @@ const ghostBtn: React.CSSProperties = {
   padding: "8px 14px", fontSize: 13, fontWeight: 500,
   borderRadius: 8, cursor: "pointer",
   background: "transparent", border: "0.5px solid #d1d5db", color: "#6b7280",
+  whiteSpace: "nowrap",
 };
 
 const cardBtn: React.CSSProperties = {
@@ -820,6 +943,7 @@ const formatBtn: React.CSSProperties = {
   background: "#fff", border: "0.5px solid #e5e7eb", color: "#374151",
   display: "inline-flex", alignItems: "center", justifyContent: "center",
 };
+
 const imgToolbarBtn: React.CSSProperties = {
   minWidth: 26,
   height: 26,
