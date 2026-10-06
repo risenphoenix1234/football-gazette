@@ -3,7 +3,13 @@ import type { Metadata } from "next";
 import "../styles/globals.css";
 import SessionProviderWrapper from "@/components/providers/SessionProviderWrapper";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+// Public site URL used for link previews. Falls back to NEXTAUTH_URL, then
+// Netlify's built-in URL (the site's main domain), before localhost.
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  process.env.NEXTAUTH_URL ||
+  process.env.URL ||
+  "http://localhost:3000";
 
 export const metadata: Metadata = {
   // Turns relative URLs in metadata (article links, preview images) into
