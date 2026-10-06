@@ -1,4 +1,4 @@
-// app/admin/dashboard/page.tsx
+// app/admin/dashboard/page.tsx (replaces existing file)
 "use client";
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
@@ -98,6 +98,7 @@ export default function AdminDashboard() {
   const bodyRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const bodyImageRef = useRef<HTMLInputElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   const [charCount, setCharCount] = useState(0);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -252,7 +253,11 @@ export default function AdminDashboard() {
         isEditing ? prev.map((a) => (a.id === saved.id ? saved : a)) : [saved, ...prev]
       );
 
-      showToast(finalStatus === "published" ? "Article published!" : "Draft saved!");
+      showToast(
+        isEditing
+          ? "Article updated!"
+          : finalStatus === "published" ? "Article published!" : "Draft saved!"
+      );
       clearForm();
       if (finalStatus === "published") setPanel("articles");
     } catch (err) {
@@ -310,6 +315,7 @@ export default function AdminDashboard() {
     try {
       const res = await fetch(`/api/admin/articles/${id}`, { method: "DELETE" });
       if (!res.ok && res.status !== 204) throw new Error("Failed to delete article");
+      if (editingId === id) clearForm();
       showToast("Article deleted");
     } catch (err) {
       console.error(err);
@@ -319,8 +325,11 @@ export default function AdminDashboard() {
   }
 
   function editArticle(a: Article) {
+    deselectImage();
     setPanel("create");
+    setSidebarOpen(false);
     setTimeout(() => {
+      contentRef.current?.scrollTo({ top: 0 });
       if (titleRef.current) titleRef.current.value = a.title;
       if (categoryRef.current) categoryRef.current.value = a.category;
       if (authorRef.current) authorRef.current.value = a.author;
@@ -556,7 +565,7 @@ export default function AdminDashboard() {
           </div>
 
           {/* CONTENT (this is the scroll container the sticky toolbar sticks inside) */}
-          <div style={{ flex: 1, overflow: "auto", WebkitOverflowScrolling: "touch" }}>
+          <div ref={contentRef} style={{ flex: 1, overflow: "auto", WebkitOverflowScrolling: "touch" }}>
 
             {/* CREATE PANEL */}
             {panel === "create" && (
@@ -798,7 +807,7 @@ export default function AdminDashboard() {
                 }}>
                   <span style={{ fontSize: 12, color: "#9ca3af" }}>{charCount} characters</span>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap", flex: isMobile ? 1 : "none", justifyContent: "flex-end" }}>
-                    <button onClick={clearForm} style={ghostBtn}>Clear</button>
+                    <button onClick={clearForm} style={ghostBtn}>{editingId !== null ? "Cancel Edit" : "Clear"}</button>
                     <button onClick={() => saveArticle("draft")} disabled={saving} style={ghostBtn}>
                       {saving ? "Saving..." : "Save Draft"}
                     </button>
@@ -868,6 +877,7 @@ export default function AdminDashboard() {
                           </div>
                         </div>
                         <div style={{ display: "flex", gap: 4, padding: "8px 12px 10px", borderTop: "0.5px solid #e5e7eb" }}>
+                          <button onClick={() => editArticle(a)} style={{ ...cardBtn, padding: isMobile ? "9px 5px" : "5px" }}>✎ Edit</button>
                           <button onClick={() => deleteArticle(a.id, a.title)} style={{ ...cardBtn, color: "#b91c1c", padding: isMobile ? "9px 5px" : "5px" }}>🗑 Delete</button>
                         </div>
                       </div>

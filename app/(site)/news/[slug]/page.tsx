@@ -1,10 +1,72 @@
+// app/(site)/news/[slug]/page.tsx (replaces existing file)
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { getArticleDetail, getMoreNews } from "@/lib/news";
 
 interface Props {
   params: Promise<{ slug: string }>;
+}
+
+// Strips HTML tags so the article body can be used as a plain-text
+// fallback description when there's no excerpt.
+function toPlainText(html: string): string {
+  return html
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function truncate(text: string, max: number): string {
+  if (text.length <= max) return text;
+  return text.slice(0, max - 1).trimEnd() + "…";
+}
+
+// Builds the link preview (WhatsApp, X, Facebook, LinkedIn, Slack, etc.)
+// shown when an article URL is pasted somewhere.
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+  const article = await getArticleDetail(slug);
+
+  if (!article) {
+    return { title: "Article not found | Football Gazette" };
+  }
+
+  const description = truncate(
+    article.description ||
+      toPlainText(article.bodyHtml ?? "") ||
+      article.content ||
+      "Football news from Football Gazette",
+    200
+  );
+
+  const images = article.image
+    ? [{ url: article.image, width: 1200, height: 630, alt: article.title }]
+    : undefined;
+
+  return {
+    title: `${article.title} | Football Gazette`,
+    description,
+    alternates: article.isOwn ? { canonical: article.url } : undefined,
+    openGraph: {
+      type: "article",
+      siteName: "Football Gazette",
+      title: article.title,
+      description,
+      url: article.isOwn ? article.url : undefined,
+      images,
+      authors: [article.author],
+      tags: article.tags,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: article.title,
+      description,
+      images: article.image ? [article.image] : undefined,
+    },
+  };
 }
 
 export default async function NewsDetailPage({ params }: Props) {
@@ -13,7 +75,13 @@ export default async function NewsDetailPage({ params }: Props) {
 
   if (!article) return notFound();
 
-  const moreNews = await getMoreNews(slug, 4).catch((err) => {
+  // Old links like /news/own-8 (or a renamed headline) get sent to the
+  // current title URL, e.g. /news/own-8-arsenal-beat-chelsea.
+  if (article.isOwn && `/news/${slug}` !== article.url) {
+    permanentRedirect(article.url);
+  }
+
+  const moreNews = await getMoreNews(article.id, 4).catch((err) => {
     console.error("NewsDetailPage: failed to load more news", err);
     return [];
   });

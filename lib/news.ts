@@ -1,3 +1,6 @@
+// lib/news.ts (replaces existing file)
+import { cache } from "react";
+
 const NEWSDATA_BASE_URL = "https://newsdata.io/api/1/news";
 const BACKEND = process.env.FPL_BACKEND_URL;
 
@@ -103,6 +106,33 @@ export async function fetchFootballNewsById(id: string): Promise<NewsArticle | n
 
 // --- Our own articles (from the Express/SQLite backend) ---
 
+// Turns a headline into a URL-friendly slug, e.g.
+// "Arsenal beat Chelsea 3-1!" -> "arsenal-beat-chelsea-3-1"
+export function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80)
+    .replace(/-+$/g, "");
+}
+
+// Builds the public URL for one of our own articles, e.g.
+// /news/own-8-arsenal-beat-chelsea-3-1
+export function ownArticlePath(id: number, title: string): string {
+  const slug = slugify(title);
+  return slug ? `/news/own-${id}-${slug}` : `/news/own-${id}`;
+}
+
+// Pulls the numeric id out of "own-8" or "own-8-arsenal-beat-chelsea".
+// Old links without the title part keep working.
+export function parseOwnId(slug: string): string | null {
+  const match = slug.match(/^own-(\d+)(?:-|$)/);
+  return match ? match[1] : null;
+}
+
 type OwnArticle = {
   id: number;
   title: string;
@@ -142,7 +172,7 @@ export async function fetchOwnPublishedArticles(): Promise<NewsArticle[]> {
       avatar: null,
       description: a.excerpt,
       content: "",
-      url: `/news/own-${a.id}`,
+      url: ownArticlePath(a.id, a.title),
       publishedAt: a.date,
     }));
   } catch (err) {
@@ -171,7 +201,7 @@ async function fetchOwnArticleById(numericId: string): Promise<ArticleDetail | n
       avatar: null,
       description: a.excerpt,
       content: "",
-      url: `/news/own-${a.id}`,
+      url: ownArticlePath(a.id, a.title),
       publishedAt: a.date, // already a formatted display string, not ISO
       isOwn: true,
       bodyHtml: a.body,
@@ -185,17 +215,21 @@ async function fetchOwnArticleById(numericId: string): Promise<ArticleDetail | n
 
 // Single entry point the detail page calls — figures out whether the slug
 // refers to one of our own articles or an external one, and fetches
-// accordingly.
-export async function getArticleDetail(id: string): Promise<ArticleDetail | null> {
-  if (id.startsWith("own-")) {
-    const numericId = id.replace("own-", "");
-    return fetchOwnArticleById(numericId);
-  }
+// accordingly. Wrapped in React's cache() so generateMetadata and the page
+// itself share one fetch per request instead of hitting the backend twice.
+export const getArticleDetail = cache(
+  async (id: string): Promise<ArticleDetail | null> => {
+    if (id.startsWith("own-")) {
+      const numericId = parseOwnId(id);
+      if (!numericId) return null;
+      return fetchOwnArticleById(numericId);
+    }
 
-  const article = await fetchFootballNewsById(id);
-  if (!article) return null;
-  return { ...article, isOwn: false };
-}
+    const article = await fetchFootballNewsById(id);
+    if (!article) return null;
+    return { ...article, isOwn: false };
+  }
+);
 
 // Returns up to `limit` other articles (mixing our own + external), excluding
 // the one currently being viewed. Used for a "More News" section at the
